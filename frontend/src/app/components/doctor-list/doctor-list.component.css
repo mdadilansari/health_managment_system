@@ -1,0 +1,57 @@
+.container {
+  max-width: 1400px;
+}
+
+.table {
+  margin-top: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(25, 135, 84, 0.05);
+  cursor: pointer;
+}
+
+.avatar-circle-doctor {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #20c997 0%, #198754 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.badge {
+  padding: 8px 16px;
+}
+
+.spinner-border {
+  border-width: 0.3em;
+}
+
+a {
+  color: #0d6efd;
+}
+
+a:hover {
+  color: #0a58ca;
+  text-decoration: underline !important;
+}
+
+.form-select {
+  max-width: 300px;
+}

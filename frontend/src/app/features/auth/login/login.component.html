@@ -1,0 +1,51 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>🏥 Hospital Management System</h1>
+      <p>Sign in to continue</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input 
+          type="text" 
+          id="username" 
+          formControlName="username" 
+          class="form-control"
+          placeholder="Enter username"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          formControlName="password" 
+          class="form-control"
+          placeholder="Enter password"
+        />
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage()">
+        {{ errorMessage() }}
+      </div>
+
+      <button type="submit" class="btn-login" [disabled]="loading()">
+        <span *ngIf="!loading()">Sign In</span>
+        <span *ngIf="loading()">Signing in...</span>
+      </button>
+    </form>
+
+    <div class="quick-login">
+      <p class="text-muted">Quick Login (Demo):</p>
+      <div class="quick-login-buttons">
+        <button class="btn-quick" (click)="quickLogin('admin')">👨‍💼 Admin</button>
+        <button class="btn-quick" (click)="quickLogin('reception')">📋 Reception</button>
+        <button class="btn-quick" (click)="quickLogin('doctor')">👨‍⚕️ Doctor</button>
+        <button class="btn-quick" (click)="quickLogin('billing')">💰 Billing</button>
+      </div>
+    </div>
+  </div>
+</div>
