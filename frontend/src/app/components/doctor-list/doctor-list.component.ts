@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from '../../core/services/mock-data.service';
@@ -9,10 +9,12 @@ import { Doctor } from '../../core/models/doctor.model';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './doctor-list.component.html',
-  styleUrls: ['./doctor-list.component.css']
+  styleUrls: ['./doctor-list.component.css'],
+  changeDetection: ChangeDetectionStrategy.Default
 })
 export class DoctorListComponent implements OnInit {
   private mockDataService = inject(MockDataService);
+  private cdr = inject(ChangeDetectorRef);
   
   doctors: Doctor[] = [];
   departments: string[] = [];
@@ -28,7 +30,8 @@ export class DoctorListComponent implements OnInit {
   loadDepartments(): void {
     this.mockDataService.getDepartments().subscribe({
       next: (data) => {
-        this.departments = data;
+        this.departments = [...data];
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error loading departments:', err);
@@ -38,14 +41,19 @@ export class DoctorListComponent implements OnInit {
 
   loadDoctors(department?: string): void {
     this.loading = true;
+    this.error = '';
+    this.cdr.markForCheck();
+    
     this.mockDataService.getDoctors(department).subscribe({
       next: (data) => {
-        this.doctors = data;
+        this.doctors = [...data];
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.error = 'Failed to load doctors';
         this.loading = false;
+        this.cdr.detectChanges();
         console.error('Error loading doctors:', err);
       }
     });
