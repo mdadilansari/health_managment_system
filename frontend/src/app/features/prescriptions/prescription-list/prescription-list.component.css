@@ -1,0 +1,27 @@
+.prescription-card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  border: 2px solid #e9ecef;
+}
+
+.prescription-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.card-header {
+  border-radius: 10px 10px 0 0 !important;
+}
+
+.card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+ul {
+  padding-left: 0;
+}
+
+.list-unstyled li {
+  padding: 4px 0;
+}

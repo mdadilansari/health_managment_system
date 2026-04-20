@@ -46,19 +46,28 @@ export class DashboardComponent implements OnInit {
       title: 'Appointments',
       description: 'Schedule and manage appointments',
       icon: '📅',
-      count: 'Coming Soon',
-      route: '#',
+      count: '50 Scheduled',
+      route: '/appointments',
       color: 'info',
-      disabled: true
+      disabled: false
     },
     {
       title: 'Billing',
       description: 'View bills and payment records',
       icon: '💰',
-      count: 'Coming Soon',
-      route: '#',
+      count: '30 Bills',
+      route: '/billing',
       color: 'warning',
-      disabled: true
+      disabled: false
+    },
+    {
+      title: 'Prescriptions',
+      description: 'Manage medical prescriptions',
+      icon: '💊',
+      count: '40 Active',
+      route: '/prescriptions',
+      color: 'secondary',
+      disabled: false
     }
   ];
 

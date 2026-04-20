@@ -1,0 +1,175 @@
+<div class="container mt-4 mb-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+          <h3 class="mb-0">📅 Book New Appointment</h3>
+        </div>
+        <div class="card-body">
+          <!-- Progress Stepper -->
+          <div class="stepper mb-4">
+            <div class="stepper-steps d-flex justify-content-between">
+              <div class="stepper-step" [class.active]="currentStep() >= 1" [class.completed]="currentStep() > 1">
+                <div class="step-number">1</div>
+                <div class="step-label">Patient</div>
+              </div>
+              <div class="stepper-line" [class.completed]="currentStep() > 1"></div>
+              <div class="stepper-step" [class.active]="currentStep() >= 2" [class.completed]="currentStep() > 2">
+                <div class="step-number">2</div>
+                <div class="step-label">Doctor</div>
+              </div>
+              <div class="stepper-line" [class.completed]="currentStep() > 2"></div>
+              <div class="stepper-step" [class.active]="currentStep() >= 3" [class.completed]="currentStep() > 3">
+                <div class="step-number">3</div>
+                <div class="step-label">Date & Time</div>
+              </div>
+              <div class="stepper-line" [class.completed]="currentStep() > 3"></div>
+              <div class="stepper-step" [class.active]="currentStep() >= 4">
+                <div class="step-number">4</div>
+                <div class="step-label">Details</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1: Select Patient -->
+          <div *ngIf="currentStep() === 1">
+            <h5 class="mb-3">Select Patient</h5>
+            <form [formGroup]="patientForm">
+              <div class="mb-3">
+                <label for="patient" class="form-label fw-bold">Patient *</label>
+                <select id="patient" class="form-select" formControlName="patient_id">
+                  <option value="">Choose a patient...</option>
+                  <option *ngFor="let patient of patients" [value]="patient.patient_id">
+                    {{ patient.name }} - {{ patient.email }}
+                  </option>
+                </select>
+                <div *ngIf="patientForm.get('patient_id')?.touched && patientForm.get('patient_id')?.invalid" 
+                     class="text-danger small mt-1">
+                  Please select a patient
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 2: Select Doctor -->
+          <div *ngIf="currentStep() === 2">
+            <h5 class="mb-3">Select Doctor & Department</h5>
+            <form [formGroup]="doctorForm">
+              <div class="mb-3">
+                <label for="department" class="form-label fw-bold">Department *</label>
+                <select id="department" class="form-select" formControlName="department">
+                  <option value="">Choose a department...</option>
+                  <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+                </select>
+                <div *ngIf="doctorForm.get('department')?.touched && doctorForm.get('department')?.invalid" 
+                     class="text-danger small mt-1">
+                  Please select a department
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="doctor" class="form-label fw-bold">Doctor *</label>
+                <select id="doctor" class="form-select" formControlName="doctor_id" 
+                        [disabled]="!doctorForm.get('department')?.value">
+                  <option value="">Choose a doctor...</option>
+                  <option *ngFor="let doctor of filteredDoctors" [value]="doctor.doctor_id">
+                    Dr. {{ doctor.name }} - {{ doctor.specialization }}
+                  </option>
+                </select>
+                <div *ngIf="doctorForm.get('doctor_id')?.touched && doctorForm.get('doctor_id')?.invalid" 
+                     class="text-danger small mt-1">
+                  Please select a doctor
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Select Date & Time -->
+          <div *ngIf="currentStep() === 3">
+            <h5 class="mb-3">Select Date & Time</h5>
+            <form [formGroup]="dateTimeForm">
+              <div class="mb-3">
+                <label for="date" class="form-label fw-bold">Appointment Date *</label>
+                <input type="date" id="date" class="form-control" formControlName="appointment_date">
+                <div *ngIf="dateTimeForm.get('appointment_date')?.touched && dateTimeForm.get('appointment_date')?.invalid" 
+                     class="text-danger small mt-1">
+                  Please select an appointment date
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold">Time Slot *</label>
+                <div class="time-slots">
+                  <button 
+                    type="button"
+                    *ngFor="let slot of availableSlots" 
+                    class="btn time-slot-btn"
+                    [class.active]="dateTimeForm.get('start_time')?.value === slot"
+                    (click)="dateTimeForm.patchValue({ start_time: slot })">
+                    {{ slot }}
+                  </button>
+                </div>
+                <div *ngIf="dateTimeForm.get('start_time')?.touched && dateTimeForm.get('start_time')?.invalid" 
+                     class="text-danger small mt-1">
+                  Please select a time slot
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 4: Add Details -->
+          <div *ngIf="currentStep() === 4">
+            <h5 class="mb-3">Confirm Appointment Details</h5>
+            <form [formGroup]="detailsForm">
+              <input type="hidden" formControlName="department">
+
+              <!-- Summary -->
+              <div class="alert alert-info">
+                <h6 class="alert-heading">📋 Appointment Summary</h6>
+                <hr>
+                <p class="mb-1"><strong>Patient:</strong> {{ getSelectedPatient()?.name || 'Not selected' }}</p>
+                <p class="mb-1"><strong>Doctor:</strong> Dr. {{ getSelectedDoctor()?.name || 'Not selected' }}</p>
+                <p class="mb-1"><strong>Department:</strong> {{ doctorForm.get('department')?.value || 'N/A' }}</p>
+                <p class="mb-1"><strong>Date:</strong> {{ dateTimeForm.get('appointment_date')?.value | date:'fullDate' }}</p>
+                <p class="mb-0"><strong>Time:</strong> {{ dateTimeForm.get('start_time')?.value || 'Not selected' }}</p>
+              </div>
+            </form>
+          </div>
+
+          <!-- Error Message -->
+          <div *ngIf="error()" class="alert alert-danger mt-3">
+            {{ error() }}
+          </div>
+
+          <!-- Navigation Buttons -->
+          <div class="d-flex justify-content-between mt-4">
+            <button class="btn btn-secondary" (click)="cancel()">
+              Cancel
+            </button>
+            <div>
+              <button 
+                class="btn btn-outline-primary me-2" 
+                (click)="previousStep()" 
+                [disabled]="currentStep() === 1">
+                ← Previous
+              </button>
+              <button 
+                *ngIf="currentStep() < totalSteps"
+                class="btn btn-primary" 
+                (click)="nextStep()"
+                [disabled]="!isStepValid(currentStep())">
+                Next →
+              </button>
+              <button 
+                *ngIf="currentStep() === totalSteps"
+                class="btn btn-success" 
+                (click)="bookAppointment()"
+                [disabled]="loading() || !isStepValid(currentStep())">
+                <span *ngIf="loading()" class="spinner-border spinner-border-sm me-2"></span>
+                {{ loading() ? 'Booking...' : '✓ Confirm Booking' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

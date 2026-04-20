@@ -1,0 +1,122 @@
+/* Stepper Styles */
+.stepper {
+  padding: 20px 0;
+}
+
+.stepper-steps {
+  position: relative;
+  align-items: center;
+}
+
+.stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+  position: relative;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.stepper-step.active .step-number {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.stepper-step.completed .step-number {
+  background-color: #198754;
+  color: white;
+}
+
+.step-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.stepper-step.active .step-label {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.stepper-line {
+  flex: 1;
+  height: 3px;
+  background-color: #e9ecef;
+  margin: 0 10px;
+  margin-bottom: 30px;
+  transition: all 0.3s ease;
+}
+
+.stepper-line.completed {
+  background-color: #198754;
+}
+
+/* Time Slots */
+.time-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.time-slot-btn {
+  border: 2px solid #dee2e6;
+  background: white;
+  color: #495057;
+  padding: 10px;
+  transition: all 0.2s ease;
+}
+
+.time-slot-btn:hover {
+  border-color: #0d6efd;
+  background-color: #f8f9fa;
+}
+
+.time-slot-btn.active {
+  border-color: #0d6efd;
+  background-color: #0d6efd;
+  color: white;
+}
+
+/* Card */
+.card {
+  border: none;
+  border-radius: 12px;
+}
+
+.card-header {
+  border-radius: 12px 12px 0 0 !important;
+}
+
+/* Form Controls */
+.form-select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+textarea.form-control {
+  resize: vertical;
+}
+
+/* Alert */
+.alert-info {
+  background-color: #e7f3ff;
+  border-color: #b6d4fe;
+  color: #084298;
+}
+
+.alert-heading {
+  margin-bottom: 0.5rem;
+}
