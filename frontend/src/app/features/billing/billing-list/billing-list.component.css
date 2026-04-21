@@ -13,3 +13,64 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
 }
+
+/* Stat Cards */
+.stat-card {
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+}
+
+.stat-card-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%);
+}
+
+.stat-card-primary .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 25%);
+}
+
+.stat-card-success .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card-warning {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 25%);
+}
+
+.stat-card-warning .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card-danger {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 25%);
+}
+
+.stat-card-danger .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-icon {
+  font-size: 2.5rem;
+  opacity: 0.8;
+}
+
+.stat-card h2 {
+  font-size: 2rem;
+}
+
+.stat-card .small {
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

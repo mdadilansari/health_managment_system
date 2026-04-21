@@ -5,15 +5,73 @@
   padding-top: 50px;
 }
 
+/* Stat Cards */
+.stat-card {
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.25) !important;
+}
+
+.stat-card-patients {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%);
+}
+
+.stat-card-patients .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card-doctors {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 25%);
+}
+
+.stat-card-doctors .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-card-appointments {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 25%);
+}
+
+.stat-card-appointments .card-body {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.stat-icon {
+  font-size: 3rem;
+  opacity: 0.8;
+}
+
+.stat-card h2 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+}
+
+.stat-card .small {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+}
+
+/* Module Cards */
 .dashboard-card {
   transition: all 0.3s ease;
   border-width: 2px;
   cursor: pointer;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
 }
 
 .dashboard-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.3);
 }
 
 .disabled-card {
@@ -39,6 +97,7 @@
 .badge {
   padding: 8px 16px;
   font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .card-footer {
@@ -65,4 +124,8 @@ a {
 
 .bg-warning.bg-opacity-10 {
   background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.bg-secondary.bg-opacity-10 {
+  background-color: rgba(108, 117, 125, 0.1) !important;
 }

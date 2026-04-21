@@ -18,7 +18,7 @@ export class DashboardComponent implements OnInit {
   currentUser = this.authService.currentUser;
   today = new Date();
   
-  stats = {
+    stats = {
     patients: 0,
     doctors: 0,
     appointments: 0,
