@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../../core/services/mock-data.service';
+import { BillingService } from '../../../core/services/billing.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Bill, BillStatus } from '../../../core/models/billing.model';
@@ -14,7 +14,7 @@ import { Bill, BillStatus } from '../../../core/models/billing.model';
   styleUrls: ['./billing-list.component.css']
 })
 export class BillingListComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private billingService = inject(BillingService);
   private toastService = inject(ToastService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
@@ -26,7 +26,7 @@ export class BillingListComponent implements OnInit {
   
   selectedStatus: string = '';
   searchTerm: string = '';
-  statusOptions: BillStatus[] = ['OPEN', 'PAID', 'VOID'];
+  statusOptions: BillStatus[] = ['PENDING', 'PAID', 'PARTIALLY_PAID', 'OVERDUE'];
 
   ngOnInit(): void {
     this.loadBills();
@@ -37,7 +37,7 @@ export class BillingListComponent implements OnInit {
     this.error = '';
     this.cdr.markForCheck();
     
-    this.mockDataService.getBills().subscribe({
+    this.billingService.getBills().subscribe({
       next: (data) => {
         this.bills = [...data];
         this.filteredBills = [...data];
@@ -45,6 +45,7 @@ export class BillingListComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
+        console.error('Error loading bills:', err);
         this.error = 'Failed to load bills';
         this.loading = false;
         this.cdr.detectChanges();
@@ -73,8 +74,11 @@ export class BillingListComponent implements OnInit {
 
   getStatusClass(status: BillStatus): string {
     const statusMap: Record<BillStatus, string> = {
-      'OPEN': 'bg-warning',
+      'PENDING': 'bg-warning',
       'PAID': 'bg-success',
+      'PARTIALLY_PAID': 'bg-info',
+      'OVERDUE': 'bg-danger',
+      'OPEN': 'bg-warning',
       'VOID': 'bg-danger'
     };
     return statusMap[status] || 'bg-secondary';
@@ -84,7 +88,7 @@ export class BillingListComponent implements OnInit {
     if (bill.line_items && bill.line_items.length > 0) {
       return bill.line_items.reduce((sum, item) => sum + item.amount, 0);
     }
-    return bill.amount;
+    return typeof bill.amount === 'string' ? parseFloat(bill.amount) : (bill.amount || 0);
   }
 
   getPaidBillsCount(): number {
@@ -92,10 +96,18 @@ export class BillingListComponent implements OnInit {
   }
 
   getPendingBillsCount(): number {
-    return this.bills.filter(b => b.status === 'OPEN').length;
+    return this.bills.filter(b => b.status === 'PENDING').length;
   }
 
   getOverdueBillsCount(): number {
+    return this.bills.filter(b => b.status === 'OVERDUE').length;
+  }
+
+  getOpenBillsCount(): number {
+    return this.bills.filter(b => b.status === 'OPEN').length;
+  }
+
+  getVoidBillsCount(): number {
     return this.bills.filter(b => b.status === 'VOID').length;
   }
 

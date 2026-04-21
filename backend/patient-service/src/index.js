@@ -52,6 +52,121 @@ app.get('/api/patients/:id', async (req, res) => {
   }
 });
 
+// Create new patient
+app.post('/api/patients', async (req, res) => {
+  try {
+    const { name, email, phone, dob, gender, address } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: name, email, phone' 
+      });
+    }
+
+    const created_at = new Date().toISOString();
+
+    const result = await pool.query(
+      `INSERT INTO patients (name, email, phone, dob, gender, address, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [name, email, phone, dob || null, gender || null, address || null, created_at]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating patient:', error);
+    res.status(500).json({ error: 'Failed to create patient' });
+  }
+});
+
+// Update patient
+app.put('/api/patients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, dob, gender, address } = req.body;
+
+    let updates = [];
+    let params = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push('name = $' + paramIndex);
+      params.push(name);
+      paramIndex++;
+    }
+
+    if (email !== undefined) {
+      updates.push('email = $' + paramIndex);
+      params.push(email);
+      paramIndex++;
+    }
+
+    if (phone !== undefined) {
+      updates.push('phone = $' + paramIndex);
+      params.push(phone);
+      paramIndex++;
+    }
+
+    if (dob !== undefined) {
+      updates.push('dob = $' + paramIndex);
+      params.push(dob);
+      paramIndex++;
+    }
+
+    if (gender !== undefined) {
+      updates.push('gender = $' + paramIndex);
+      params.push(gender);
+      paramIndex++;
+    }
+
+    if (address !== undefined) {
+      updates.push('address = $' + paramIndex);
+      params.push(address);
+      paramIndex++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    let updateQuery = 'UPDATE patients SET ' + updates.join(', ') + ' WHERE patient_id = $' + paramIndex + ' RETURNING *';
+    params.push(id);
+
+    const result = await pool.query(updateQuery, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating patient:', error);
+    res.status(500).json({ error: 'Failed to update patient' });
+  }
+});
+
+// Delete patient
+app.delete('/api/patients/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'DELETE FROM patients WHERE patient_id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    res.json({ message: 'Patient deleted successfully', patient: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting patient:', error);
+    res.status(500).json({ error: 'Failed to delete patient' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Patient Service running on http://localhost:${PORT}`);

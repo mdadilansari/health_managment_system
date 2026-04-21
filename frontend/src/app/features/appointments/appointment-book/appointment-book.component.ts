@@ -2,7 +2,9 @@ import { Component, OnInit, inject, signal, ChangeDetectorRef } from '@angular/c
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { MockDataService } from '../../../core/services/mock-data.service';
+import { PatientService } from '../../../core/services/patient.service';
+import { DoctorService } from '../../../core/services/doctor.service';
+import { AppointmentService } from '../../../core/services/appointment.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Patient } from '../../../core/models/patient.model';
 import { Doctor } from '../../../core/models/doctor.model';
@@ -17,7 +19,9 @@ import { Appointment } from '../../../core/models/appointment.model';
 })
 export class AppointmentBookComponent implements OnInit {
   private fb = inject(FormBuilder);
-  private mockDataService = inject(MockDataService);
+  private patientService = inject(PatientService);
+  private doctorService = inject(DoctorService);
+  private appointmentService = inject(AppointmentService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private toastService = inject(ToastService);
@@ -29,10 +33,7 @@ export class AppointmentBookComponent implements OnInit {
   departments: string[] = [];
   doctors: Doctor[] = [];
   filteredDoctors: Doctor[] = [];
-  availableSlots: string[] = [
-    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-    '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'
-  ];
+  availableSlots: string[] = [];
 
   patientForm: FormGroup;
   doctorForm: FormGroup;
@@ -67,25 +68,28 @@ export class AppointmentBookComponent implements OnInit {
   }
 
   loadInitialData(): void {
-    this.mockDataService.getPatients().subscribe({
+    this.patientService.getPatients().subscribe({
       next: (data) => {
         this.patients = data;
         this.cdr.detectChanges();
-      }
+      },
+      error: (err) => console.error('Error loading patients:', err)
     });
 
-    this.mockDataService.getDepartments().subscribe({
+    this.doctorService.getDepartments().subscribe({
       next: (data) => {
         this.departments = data;
         this.cdr.detectChanges();
-      }
+      },
+      error: (err) => console.error('Error loading departments:', err)
     });
 
-    this.mockDataService.getDoctors().subscribe({
+    this.doctorService.getDoctors().subscribe({
       next: (data) => {
         this.doctors = data;
         this.cdr.detectChanges();
-      }
+      },
+      error: (err) => console.error('Error loading doctors:', err)
     });
 
     this.doctorForm.get('department')?.valueChanges.subscribe(department => {
@@ -93,6 +97,27 @@ export class AppointmentBookComponent implements OnInit {
         this.filteredDoctors = this.doctors.filter(d => d.department === department);
         this.doctorForm.patchValue({ doctor_id: '' });
         this.detailsForm.patchValue({ department });
+      }
+    });
+
+    // Load available slots when date and doctor are selected
+    this.dateTimeForm.get('appointment_date')?.valueChanges.subscribe(date => {
+      const doctorId = this.doctorForm.get('doctor_id')?.value;
+      if (date && doctorId) {
+        this.loadAvailableSlots(doctorId, date);
+      }
+    });
+  }
+
+  loadAvailableSlots(doctorId: number, date: string): void {
+    this.appointmentService.getAvailableSlots(doctorId, date).subscribe({
+      next: (slots) => {
+        this.availableSlots = slots;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error loading slots:', err);
+        this.availableSlots = [];
       }
     });
   }
@@ -161,17 +186,16 @@ export class AppointmentBookComponent implements OnInit {
     const slotEnd = new Date(slotStart);
     slotEnd.setMinutes(slotEnd.getMinutes() + 30);
 
-    const appointmentData: Partial<Appointment> = {
+    const appointmentData = {
       patient_id: Number(this.patientForm.value.patient_id),
       doctor_id: Number(this.doctorForm.value.doctor_id),
-      department: this.detailsForm.value.department,
-      slot_start: slotStart.toISOString(),
-      slot_end: slotEnd.toISOString(),
-      status: 'SCHEDULED',
-      reschedule_count: 0
+      appointment_date: selectedDate + 'T' + this.dateTimeForm.value.start_time,
+      time_slot: this.dateTimeForm.value.start_time,
+      reason: 'Appointment',
+      notes: ''
     };
 
-    this.mockDataService.createAppointment(appointmentData).subscribe({
+    this.appointmentService.createAppointment(appointmentData).subscribe({
       next: (appointment) => {
         this.loading.set(false);
         this.toastService.success(`Appointment booked successfully! Appointment ID: #${appointment.appointment_id}`);

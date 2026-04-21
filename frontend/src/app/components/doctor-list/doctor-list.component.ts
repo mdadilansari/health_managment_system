@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../core/services/mock-data.service';
+import { DoctorService } from '../../core/services/doctor.service';
 import { Doctor } from '../../core/models/doctor.model';
 
 @Component({
@@ -13,7 +13,7 @@ import { Doctor } from '../../core/models/doctor.model';
   changeDetection: ChangeDetectionStrategy.Default
 })
 export class DoctorListComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private doctorService = inject(DoctorService);
   private cdr = inject(ChangeDetectorRef);
   
   doctors: Doctor[] = [];
@@ -30,7 +30,7 @@ export class DoctorListComponent implements OnInit {
   }
 
   loadDepartments(): void {
-    this.mockDataService.getDepartments().subscribe({
+    this.doctorService.getDepartments().subscribe({
       next: (data) => {
         this.departments = [...data];
         this.cdr.detectChanges();
@@ -46,7 +46,7 @@ export class DoctorListComponent implements OnInit {
     this.error = '';
     this.cdr.markForCheck();
     
-    this.mockDataService.getDoctors(department).subscribe({
+    this.doctorService.getDoctors(department).subscribe({
       next: (data) => {
         this.doctors = [...data];
         if (!department) {

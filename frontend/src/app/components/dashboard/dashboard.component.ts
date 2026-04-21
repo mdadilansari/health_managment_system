@@ -1,8 +1,12 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
-import { MockDataService } from '../../core/services/mock-data.service';
+import { PatientService } from '../../core/services/patient.service';
+import { DoctorService } from '../../core/services/doctor.service';
+import { AppointmentService } from '../../core/services/appointment.service';
+import { BillingService } from '../../core/services/billing.service';
+import { PrescriptionService } from '../../core/services/prescription.service';
 import { UserRole } from '../../core/models/auth.model';
 
 @Component({
@@ -14,16 +18,23 @@ import { UserRole } from '../../core/models/auth.model';
 })
 export class DashboardComponent implements OnInit {
   private authService = inject(AuthService);
-  private mockDataService = inject(MockDataService);
+  private patientService = inject(PatientService);
+  private doctorService = inject(DoctorService);
+  private appointmentService = inject(AppointmentService);
+  private billingService = inject(BillingService);
+  private prescriptionService = inject(PrescriptionService);
+  private cdr = inject(ChangeDetectorRef);
   
   currentUser = this.authService.currentUser;
   today = new Date();
+  isLoading = true;
   
-    stats = {
+  stats = {
     patients: 0,
     doctors: 0,
     appointments: 0,
-    bills: 0
+    bills: 0,
+    prescriptions: 0
   };
   
   allCards = [
@@ -83,7 +94,27 @@ export class DashboardComponent implements OnInit {
     
     return this.allCards.filter(card => 
       card.allowedRoles.includes(userRole)
-    );
+    ).map(card => ({
+      ...card,
+      count: this.getCountForCard(card.title)
+    }));
+  }
+
+  getCountForCard(title: string): string {
+    switch (title) {
+      case 'Patients':
+        return `${this.stats.patients} Patients`;
+      case 'Doctors':
+        return `${this.stats.doctors} Doctors`;
+      case 'Appointments':
+        return `${this.stats.appointments} Scheduled`;
+      case 'Billing':
+        return `${this.stats.bills} Bills`;
+      case 'Prescriptions':
+        return `${this.stats.prescriptions} Active`;
+      default:
+        return '0';
+    }
   }
 
   ngOnInit(): void {
@@ -91,9 +122,69 @@ export class DashboardComponent implements OnInit {
   }
 
   loadStats(): void {
-    this.mockDataService.getPatients().subscribe(p => this.stats.patients = p.length);
-    this.mockDataService.getDoctors().subscribe(d => this.stats.doctors = d.length);
-    this.mockDataService.getAppointments().subscribe(a => this.stats.appointments = a.length);
-    this.mockDataService.getBills().subscribe(b => this.stats.bills = b.length);
+    let loadedCount = 0;
+    const totalServices = 5;
+
+    this.patientService.getPatients().subscribe({
+      next: (patients) => {
+        this.stats.patients = patients.length;
+        this.checkAllLoaded(++loadedCount, totalServices);
+      },
+      error: (error) => {
+        console.error('Error loading patients:', error);
+        this.checkAllLoaded(++loadedCount, totalServices);
+      }
+    });
+    
+    this.doctorService.getDoctors().subscribe({
+      next: (doctors) => {
+        this.stats.doctors = doctors.length;
+        this.checkAllLoaded(++loadedCount, totalServices);
+      },
+      error: (error) => {
+        console.error('Error loading doctors:', error);
+        this.checkAllLoaded(++loadedCount, totalServices);
+      }
+    });
+    
+    this.appointmentService.getAppointments().subscribe({
+      next: (appointments) => {
+        this.stats.appointments = appointments.length;
+        this.checkAllLoaded(++loadedCount, totalServices);
+      },
+      error: (error) => {
+        console.error('Error loading appointments:', error);
+        this.checkAllLoaded(++loadedCount, totalServices);
+      }
+    });
+    
+    this.billingService.getBills().subscribe({
+      next: (bills) => {
+        this.stats.bills = bills.length;
+        this.checkAllLoaded(++loadedCount, totalServices);
+      },
+      error: (error) => {
+        console.error('Error loading bills:', error);
+        this.checkAllLoaded(++loadedCount, totalServices);
+      }
+    });
+
+    this.prescriptionService.getPrescriptions().subscribe({
+      next: (prescriptions) => {
+        this.stats.prescriptions = prescriptions.length;
+        this.checkAllLoaded(++loadedCount, totalServices);
+      },
+      error: (error) => {
+        console.error('Error loading prescriptions:', error);
+        this.checkAllLoaded(++loadedCount, totalServices);
+      }
+    });
+  }
+
+  private checkAllLoaded(loaded: number, total: number): void {
+    this.cdr.detectChanges();
+    if (loaded === total) {
+      this.isLoading = false;
+    }
   }
 }

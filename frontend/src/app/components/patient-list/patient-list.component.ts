@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../core/services/mock-data.service';
+import { PatientService } from '../../core/services/patient.service';
 import { Patient } from '../../core/models/patient.model';
 
 @Component({
@@ -13,7 +13,7 @@ import { Patient } from '../../core/models/patient.model';
   changeDetection: ChangeDetectionStrategy.Default
 })
 export class PatientListComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private patientService = inject(PatientService);
   private cdr = inject(ChangeDetectorRef);
   
   patients: Patient[] = [];
@@ -30,17 +30,14 @@ export class PatientListComponent implements OnInit {
     this.error = '';
     this.cdr.markForCheck();
     
-    console.log('🔍 Fetching patients from mock service...');
-    this.mockDataService.getPatients().subscribe({
+    this.patientService.getPatients().subscribe({
       next: (data) => {
-        console.log('✅ Data received:', data);
-        console.log('📊 Number of patients:', data.length);
         this.patients = [...data];
         this.loading = false;
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('❌ Error:', err);
+        console.error('Error loading patients:', err);
         this.error = 'Failed to load patients';
         this.loading = false;
         this.cdr.detectChanges();

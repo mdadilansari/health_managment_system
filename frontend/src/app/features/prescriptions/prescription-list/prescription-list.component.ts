@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../../core/services/mock-data.service';
+import { PrescriptionService } from '../../../core/services/prescription.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Prescription } from '../../../core/models/prescription.model';
 
@@ -13,7 +13,7 @@ import { Prescription } from '../../../core/models/prescription.model';
   styleUrls: ['./prescription-list.component.css']
 })
 export class PrescriptionListComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private prescriptionService = inject(PrescriptionService);
   private toastService = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   
@@ -32,13 +32,14 @@ export class PrescriptionListComponent implements OnInit {
     this.error = '';
     this.cdr.markForCheck();
     
-    this.mockDataService.getPrescriptions().subscribe({
+    this.prescriptionService.getPrescriptions().subscribe({
       next: (data) => {
         this.prescriptions = [...data];
         this.loading = false;
         this.cdr.detectChanges();
       },
       error: (err) => {
+        console.error('Error loading prescriptions:', err);
         this.error = 'Failed to load prescriptions';
         this.loading = false;
         this.cdr.detectChanges();

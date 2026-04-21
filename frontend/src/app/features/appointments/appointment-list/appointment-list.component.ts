@@ -2,7 +2,7 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { MockDataService } from '../../../core/services/mock-data.service';
+import { AppointmentService } from '../../../core/services/appointment.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Appointment, AppointmentStatus } from '../../../core/models/appointment.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -16,7 +16,7 @@ import { UserRole } from '../../../core/models/auth.model';
   styleUrls: ['./appointment-list.component.css']
 })
 export class AppointmentListComponent implements OnInit {
-  private mockDataService = inject(MockDataService);
+  private appointmentService = inject(AppointmentService);
   private toastService = inject(ToastService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
@@ -43,7 +43,7 @@ export class AppointmentListComponent implements OnInit {
     this.error = '';
     this.cdr.markForCheck();
     
-    this.mockDataService.getAppointments().subscribe({
+    this.appointmentService.getAppointments().subscribe({
       next: (data) => {
         this.appointments = [...data];
         this.filteredAppointments = [...data];
@@ -52,6 +52,7 @@ export class AppointmentListComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
+        console.error('Error loading appointments:', err);
         this.error = 'Failed to load appointments';
         this.loading = false;
         this.cdr.detectChanges();
