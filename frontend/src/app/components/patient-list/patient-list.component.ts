@@ -1,12 +1,13 @@
 import { Component, OnInit, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MockDataService } from '../../core/services/mock-data.service';
 import { Patient } from '../../core/models/patient.model';
 
 @Component({
   selector: 'app-patient-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './patient-list.component.html',
   styleUrls: ['./patient-list.component.css'],
   changeDetection: ChangeDetectionStrategy.Default
@@ -16,6 +17,7 @@ export class PatientListComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   
   patients: Patient[] = [];
+  searchTerm: string = '';
   loading: boolean = true;
   error: string = '';
 
@@ -44,5 +46,18 @@ export class PatientListComponent implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  get filteredPatients(): Patient[] {
+    if (!this.searchTerm) {
+      return this.patients;
+    }
+    const term = this.searchTerm.toLowerCase();
+    return this.patients.filter(p => 
+      p.name.toLowerCase().includes(term) ||
+      p.email.toLowerCase().includes(term) ||
+      p.phone.includes(term) ||
+      p.patient_id.toString().includes(term)
+    );
   }
 }

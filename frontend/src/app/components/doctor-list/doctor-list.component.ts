@@ -17,8 +17,10 @@ export class DoctorListComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   
   doctors: Doctor[] = [];
+  allDoctors: Doctor[] = [];
   departments: string[] = [];
   selectedDepartment: string = '';
+  searchTerm: string = '';
   loading: boolean = true;
   error: string = '';
 
@@ -47,6 +49,9 @@ export class DoctorListComponent implements OnInit {
     this.mockDataService.getDoctors(department).subscribe({
       next: (data) => {
         this.doctors = [...data];
+        if (!department) {
+          this.allDoctors = [...data];
+        }
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -65,5 +70,19 @@ export class DoctorListComponent implements OnInit {
     } else {
       this.loadDoctors(this.selectedDepartment);
     }
+  }
+
+  get filteredDoctors(): Doctor[] {
+    if (!this.searchTerm) {
+      return this.doctors;
+    }
+    const term = this.searchTerm.toLowerCase();
+    return this.doctors.filter(d => 
+      d.name.toLowerCase().includes(term) ||
+      d.email.toLowerCase().includes(term) ||
+      d.phone.includes(term) ||
+      d.specialization.toLowerCase().includes(term) ||
+      d.doctor_id.toString().includes(term)
+    );
   }
 }

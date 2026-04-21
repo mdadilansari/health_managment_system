@@ -4,11 +4,11 @@
       <i class="bi bi-hospital-fill"></i> Medical Staff
     </h1>
     <span class="badge bg-success fs-6" *ngIf="!loading && !error">
-      {{ doctors.length }} Doctors
+      {{ filteredDoctors.length }} / {{ doctors.length }} Doctors
     </span>
   </div>
 
-  <!-- Department Filter -->
+  <!-- Filters Row -->
   <div class="row mb-4">
     <div class="col-md-4">
       <label for="departmentFilter" class="form-label fw-bold">Filter by Department</label>
@@ -20,6 +20,27 @@
         <option value="">All Departments</option>
         <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
       </select>
+    </div>
+    <div class="col-md-8" *ngIf="!loading && !error && doctors.length > 0">
+      <label for="searchDoctor" class="form-label fw-bold">Search</label>
+      <div class="input-group">
+        <span class="input-group-text bg-white">
+          <i class="bi bi-search"></i>
+        </span>
+        <input 
+          id="searchDoctor"
+          type="text" 
+          class="form-control" 
+          placeholder="Search by name, email, phone, specialization..."
+          [(ngModel)]="searchTerm">
+        <button 
+          *ngIf="searchTerm" 
+          class="btn btn-outline-secondary" 
+          type="button"
+          (click)="searchTerm = ''">
+          Clear
+        </button>
+      </div>
     </div>
   </div>
   
@@ -38,7 +59,12 @@
     No doctors found{{ selectedDepartment ? ' in ' + selectedDepartment : '' }}.
   </div>
 
-  <div *ngIf="!loading && !error && doctors.length > 0">
+  <!-- Empty state for filtered results -->
+  <div *ngIf="!loading && !error && doctors.length > 0 && filteredDoctors.length === 0" class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> No doctors match your search "{{ searchTerm }}". Try a different search term.
+  </div>
+
+  <div *ngIf="!loading && !error && filteredDoctors.length > 0">
     <div class="table-responsive">
       <table class="table table-striped table-hover align-middle">
         <thead class="table-success">
@@ -53,7 +79,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let doctor of doctors">
+          <tr *ngFor="let doctor of filteredDoctors">
             <td><strong>{{ doctor.doctor_id }}</strong></td>
             <td>
               <div class="d-flex align-items-center">

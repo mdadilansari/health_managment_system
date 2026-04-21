@@ -2,6 +2,7 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from '../../../core/services/mock-data.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Bill, BillStatus } from '../../../core/models/billing.model';
 
 @Component({
@@ -13,6 +14,7 @@ import { Bill, BillStatus } from '../../../core/models/billing.model';
 })
 export class BillingListComponent implements OnInit {
   private mockDataService = inject(MockDataService);
+  private toastService = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   
   bills: Bill[] = [];
@@ -21,6 +23,7 @@ export class BillingListComponent implements OnInit {
   error: string = '';
   
   selectedStatus: string = '';
+  searchTerm: string = '';
   statusOptions: BillStatus[] = ['OPEN', 'PAID', 'VOID'];
 
   ngOnInit(): void {
@@ -48,16 +51,22 @@ export class BillingListComponent implements OnInit {
   }
 
   applyFilter(): void {
+    let filtered = [...this.bills];
+
     if (this.selectedStatus) {
-      this.mockDataService.getBills(this.selectedStatus).subscribe({
-        next: (data) => {
-          this.filteredBills = [...data];
-          this.cdr.detectChanges();
-        }
-      });
-    } else {
-      this.filteredBills = [...this.bills];
+      filtered = filtered.filter(b => b.status === this.selectedStatus);
     }
+
+    if (this.searchTerm) {
+      const term = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(b => 
+        b.patient_name?.toLowerCase().includes(term) ||
+        b.bill_id.toString().includes(term) ||
+        b.patient_id.toString().includes(term)
+      );
+    }
+
+    this.filteredBills = filtered;
   }
 
   getStatusClass(status: BillStatus): string {
@@ -90,8 +99,8 @@ export class BillingListComponent implements OnInit {
 
   viewBillDetails(bill: Bill): void {
     const items = bill.line_items && bill.line_items.length > 0 
-      ? bill.line_items.map(item => `${item.description}: ₹${item.amount}`).join('\n')
+      ? bill.line_items.map(item => `${item.description}: ₹${item.amount}`).join(', ')
       : 'No line items';
-    alert(`Bill Details:\n\nBill ID: #${bill.bill_id}\nPatient: ${bill.patient_name || 'Patient #' + bill.patient_id}\nTotal: ₹${this.calculateTotal(bill)}\nStatus: ${bill.status}\n\nItems:\n${items}`);
+    this.toastService.info(`Bill #${bill.bill_id} - ${bill.patient_name || 'Patient #' + bill.patient_id} - Total: ₹${this.calculateTotal(bill)} - Status: ${bill.status}`);
   }
 }

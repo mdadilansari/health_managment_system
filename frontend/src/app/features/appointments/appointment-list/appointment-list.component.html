@@ -12,7 +12,7 @@
   <div class="card mb-4">
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="statusFilter" class="form-label fw-bold">Filter by Status</label>
           <select 
             id="statusFilter" 
@@ -23,7 +23,7 @@
             <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="dateFilter" class="form-label fw-bold">Filter by Date</label>
           <input 
             type="date" 
@@ -32,9 +32,19 @@
             [(ngModel)]="searchDate" 
             (change)="applyFilters()">
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <button class="btn btn-secondary" (click)="selectedStatus=''; searchDate=''; applyFilters()">
-            Clear Filters
+        <div class="col-md-4">
+          <label for="searchAppointment" class="form-label fw-bold">Search</label>
+          <input 
+            type="text" 
+            id="searchAppointment" 
+            class="form-control" 
+            placeholder="Search by patient, doctor, department..."
+            [(ngModel)]="searchTerm" 
+            (input)="applyFilters()">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-secondary w-100" (click)="selectedStatus=''; searchDate=''; searchTerm=''; applyFilters()">
+            Clear All
           </button>
         </div>
       </div>
@@ -52,8 +62,12 @@
     <strong>Error!</strong> {{ error }}
   </div>
 
-  <div *ngIf="!loading && !error && filteredAppointments.length === 0" class="alert alert-info">
-    No appointments found{{ selectedStatus || searchDate ? ' with the selected filters' : '' }}.
+  <div *ngIf="!loading && !error && appointments.length === 0" class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No appointments found in the system.
+  </div>
+
+  <div *ngIf="!loading && !error && appointments.length > 0 && filteredAppointments.length === 0" class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> No appointments match your current filters or search. Try adjusting your criteria.
   </div>
 
   <div *ngIf="!loading && !error && filteredAppointments.length > 0">

@@ -76,7 +76,7 @@
   <div class="card mb-4">
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="statusFilter" class="form-label fw-bold">Filter by Status</label>
           <select 
             id="statusFilter" 
@@ -87,9 +87,19 @@
             <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
           </select>
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <button class="btn btn-secondary" (click)="selectedStatus=''; applyFilter()">
-            Clear Filter
+        <div class="col-md-6">
+          <label for="searchBill" class="form-label fw-bold">Search</label>
+          <input 
+            type="text" 
+            id="searchBill" 
+            class="form-control" 
+            placeholder="Search by bill ID, patient name, or patient ID..."
+            [(ngModel)]="searchTerm" 
+            (input)="applyFilter()">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button class="btn btn-secondary w-100" (click)="selectedStatus=''; searchTerm=''; applyFilter()">
+            Clear All
           </button>
         </div>
       </div>
@@ -107,8 +117,12 @@
     <strong>Error!</strong> {{ error }}
   </div>
 
-  <div *ngIf="!loading && !error && filteredBills.length === 0" class="alert alert-info">
-    No bills found{{ selectedStatus ? ' with status: ' + selectedStatus : '' }}.
+  <div *ngIf="!loading && !error && bills.length === 0" class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No bills found in the system.
+  </div>
+
+  <div *ngIf="!loading && !error && bills.length > 0 && filteredBills.length === 0" class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> No bills match your current filters or search. Try adjusting your criteria.
   </div>
 
   <div *ngIf="!loading && !error && filteredBills.length > 0">

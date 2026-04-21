@@ -4,8 +4,29 @@
       <i class="bi bi-people-fill"></i> Patient Records
     </h1>
     <span class="badge bg-primary fs-6" *ngIf="!loading && !error">
-      {{ patients.length }} Total Patients
+      {{ filteredPatients.length }} / {{ patients.length }} Patients
     </span>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="mb-3" *ngIf="!loading && !error && patients.length > 0">
+    <div class="input-group">
+      <span class="input-group-text bg-white">
+        <i class="bi bi-search"></i>
+      </span>
+      <input 
+        type="text" 
+        class="form-control" 
+        placeholder="Search by name, email, phone, or ID..."
+        [(ngModel)]="searchTerm">
+      <button 
+        *ngIf="searchTerm" 
+        class="btn btn-outline-secondary" 
+        type="button"
+        (click)="searchTerm = ''">
+        Clear
+      </button>
+    </div>
   </div>
   
   <div *ngIf="loading" class="text-center py-5">
@@ -23,7 +44,12 @@
     No patients found in the database.
   </div>
 
-  <div *ngIf="!loading && !error && patients.length > 0">
+  <!-- Empty state for filtered results -->
+  <div *ngIf="!loading && !error && patients.length > 0 && filteredPatients.length === 0" class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> No patients match your search "{{ searchTerm }}". Try a different search term.
+  </div>
+
+  <div *ngIf="!loading && !error && filteredPatients.length > 0">
     <div class="table-responsive">
       <table class="table table-striped table-hover align-middle">
         <thead class="table-primary">
@@ -37,7 +63,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let patient of patients; let i = index">
+          <tr *ngFor="let patient of filteredPatients; let i = index">
             <td><strong>{{ patient.patient_id }}</strong></td>
             <td>
               <div class="d-flex align-items-center">

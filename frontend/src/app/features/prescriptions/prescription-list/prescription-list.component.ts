@@ -2,6 +2,7 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from '../../../core/services/mock-data.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Prescription } from '../../../core/models/prescription.model';
 
 @Component({
@@ -13,13 +14,14 @@ import { Prescription } from '../../../core/models/prescription.model';
 })
 export class PrescriptionListComponent implements OnInit {
   private mockDataService = inject(MockDataService);
+  private toastService = inject(ToastService);
   private cdr = inject(ChangeDetectorRef);
   
   prescriptions: Prescription[] = [];
   loading: boolean = true;
   error: string = '';
   
-  searchPatientId: string = '';
+  searchTerm: string = '';
 
   ngOnInit(): void {
     this.loadPrescriptions();
@@ -45,31 +47,24 @@ export class PrescriptionListComponent implements OnInit {
   }
 
   get filteredPrescriptions(): Prescription[] {
-    if (!this.searchPatientId) {
+    if (!this.searchTerm) {
       return this.prescriptions;
     }
+    const term = this.searchTerm.toLowerCase();
     return this.prescriptions.filter(p => 
-      p.patient_id.toString().includes(this.searchPatientId)
+      p.patient_id.toString().includes(term) ||
+      p.patient_name?.toLowerCase().includes(term) ||
+      p.doctor_name?.toLowerCase().includes(term) ||
+      p.medication.toLowerCase().includes(term) ||
+      p.prescription_id.toString().includes(term)
     );
   }
 
   viewPrescription(prescription: Prescription): void {
-    const details = `
-Prescription Details:
-━━━━━━━━━━━━━━━━━━━━
-Prescription ID: #${prescription.prescription_id}
-Patient: ${prescription.patient_name || 'Patient #' + prescription.patient_id}
-Doctor: ${prescription.doctor_name || 'Doctor #' + prescription.doctor_id}
-Date: ${new Date(prescription.issued_at).toLocaleDateString()}
-
-Medication: ${prescription.medication}
-Dosage: ${prescription.dosage}
-Duration: ${prescription.days} days
-    `;
-    alert(details);
+    this.toastService.info(`Prescription #${prescription.prescription_id} - ${prescription.medication} (${prescription.dosage}) - ${prescription.days} days for ${prescription.patient_name || 'Patient #' + prescription.patient_id}`);
   }
 
   printPrescription(prescription: Prescription): void {
-    alert(`🖨️ Print functionality will open a print-friendly view for Prescription #${prescription.prescription_id}`);
+    this.toastService.success(`🖨️ Print view opened for Prescription #${prescription.prescription_id}`);
   }
 }

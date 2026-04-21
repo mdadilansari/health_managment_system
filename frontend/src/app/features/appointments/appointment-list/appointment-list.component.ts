@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from '../../../core/services/mock-data.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Appointment, AppointmentStatus } from '../../../core/models/appointment.model';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -15,6 +16,7 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class AppointmentListComponent implements OnInit {
   private mockDataService = inject(MockDataService);
+  private toastService = inject(ToastService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   
@@ -25,6 +27,7 @@ export class AppointmentListComponent implements OnInit {
   
   selectedStatus: string = '';
   searchDate: string = '';
+  searchTerm: string = '';
   
   currentUser = this.authService.currentUser;
   
@@ -68,6 +71,16 @@ export class AppointmentListComponent implements OnInit {
         return apptDate === this.searchDate;
       });
     }
+
+    if (this.searchTerm) {
+      const term = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(a => 
+        a.patient_name?.toLowerCase().includes(term) ||
+        a.doctor_name?.toLowerCase().includes(term) ||
+        a.department?.toLowerCase().includes(term) ||
+        a.appointment_id.toString().includes(term)
+      );
+    }
     
     this.filteredAppointments = filtered;
   }
@@ -83,9 +96,9 @@ export class AppointmentListComponent implements OnInit {
   }
 
   cancelAppointment(appointment: Appointment): void {
-    if (confirm(`Are you sure you want to cancel appointment #${appointment.appointment_id}?`)) {
-      appointment.status = 'CANCELLED';
-      this.cdr.detectChanges();
-    }
+    // In real app, this would call a backend API
+    appointment.status = 'CANCELLED';
+    this.toastService.success(`Appointment #${appointment.appointment_id} has been cancelled`);
+    this.cdr.detectChanges();
   }
 }

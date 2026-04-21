@@ -12,19 +12,26 @@
   <div class="card mb-4">
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-4">
-          <label for="patientSearch" class="form-label fw-bold">Search by Patient ID</label>
-          <input 
-            type="text" 
-            id="patientSearch" 
-            class="form-control" 
-            [(ngModel)]="searchPatientId"
-            placeholder="Enter patient ID...">
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <button class="btn btn-secondary" (click)="searchPatientId=''">
-            Clear Search
-          </button>
+        <div class="col-md-8">
+          <label for="prescriptionSearch" class="form-label fw-bold">Search</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white">
+              <i class="bi bi-search"></i>
+            </span>
+            <input 
+              type="text" 
+              id="prescriptionSearch" 
+              class="form-control" 
+              [(ngModel)]="searchTerm"
+              placeholder="Search by patient, doctor, medication, or prescription ID...">
+            <button 
+              *ngIf="searchTerm" 
+              class="btn btn-outline-secondary" 
+              type="button"
+              (click)="searchTerm = ''">
+              Clear
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -41,8 +48,12 @@
     <strong>Error!</strong> {{ error }}
   </div>
 
-  <div *ngIf="!loading && !error && filteredPrescriptions.length === 0" class="alert alert-info">
-    No prescriptions found{{ searchPatientId ? ' for Patient ID: ' + searchPatientId : '' }}.
+  <div *ngIf="!loading && !error && prescriptions.length === 0" class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No prescriptions found in the system.
+  </div>
+
+  <div *ngIf="!loading && !error && prescriptions.length > 0 && filteredPrescriptions.length === 0" class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> No prescriptions match your search "{{ searchTerm }}". Try a different search term.
   </div>
 
   <div *ngIf="!loading && !error && filteredPrescriptions.length > 0">
