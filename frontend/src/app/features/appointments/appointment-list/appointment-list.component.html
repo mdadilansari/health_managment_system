@@ -3,7 +3,7 @@
     <h1 class="mb-0">
       📅 Appointments
     </h1>
-    <a routerLink="/appointments/book" class="btn btn-primary">
+    <a *ngIf="canBookAppointment()" routerLink="/appointments/book" class="btn btn-primary">
       ➕ Book New Appointment
     </a>
   </div>
@@ -105,12 +105,12 @@
               <div class="btn-group btn-group-sm" role="group">
                 <button 
                   class="btn btn-outline-danger btn-sm" 
-                  *ngIf="appointment.status === 'SCHEDULED'"
+                  *ngIf="appointment.status === 'SCHEDULED' && canCancelAppointment()"
                   (click)="cancelAppointment(appointment)"
                   title="Cancel">
                   ❌ Cancel
                 </button>
-                <span *ngIf="appointment.status !== 'SCHEDULED'" class="text-muted small">
+                <span *ngIf="appointment.status !== 'SCHEDULED' || !canCancelAppointment()" class="text-muted small">
                   {{ appointment.status }}
                 </span>
               </div>

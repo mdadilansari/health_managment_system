@@ -6,6 +6,7 @@ import { MockDataService } from '../../../core/services/mock-data.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Appointment, AppointmentStatus } from '../../../core/models/appointment.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserRole } from '../../../core/models/auth.model';
 
 @Component({
   selector: 'app-appointment-list',
@@ -100,5 +101,13 @@ export class AppointmentListComponent implements OnInit {
     appointment.status = 'CANCELLED';
     this.toastService.success(`Appointment #${appointment.appointment_id} has been cancelled`);
     this.cdr.detectChanges();
+  }
+
+  canBookAppointment(): boolean {
+    return this.authService.hasRole(['admin', 'reception']);
+  }
+
+  canCancelAppointment(): boolean {
+    return this.authService.hasRole(['admin', 'reception']);
   }
 }

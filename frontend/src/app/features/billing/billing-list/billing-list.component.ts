@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from '../../../core/services/mock-data.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { Bill, BillStatus } from '../../../core/models/billing.model';
 
 @Component({
@@ -15,6 +16,7 @@ import { Bill, BillStatus } from '../../../core/models/billing.model';
 export class BillingListComponent implements OnInit {
   private mockDataService = inject(MockDataService);
   private toastService = inject(ToastService);
+  private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   
   bills: Bill[] = [];
@@ -102,5 +104,9 @@ export class BillingListComponent implements OnInit {
       ? bill.line_items.map(item => `${item.description}: ₹${item.amount}`).join(', ')
       : 'No line items';
     this.toastService.info(`Bill #${bill.bill_id} - ${bill.patient_name || 'Patient #' + bill.patient_id} - Total: ₹${this.calculateTotal(bill)} - Status: ${bill.status}`);
+  }
+
+  canProcessPayment(): boolean {
+    return this.authService.hasRole(['admin', 'billing']);
   }
 }

@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from './core/services/auth.service';
 import { NotificationService } from './core/services/notification.service';
 import { ToastContainerComponent } from './shared/components/toast-container/toast-container.component';
+import { UserRole } from './core/models/auth.model';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +29,10 @@ export class App {
 
   toggleDropdown(): void {
     this.dropdownOpen.update(isOpen => !isOpen);
+  }
+
+  hasAccess(roles: UserRole[]): boolean {
+    return this.authService.hasRole(roles);
   }
 
   closeDropdown(): void {

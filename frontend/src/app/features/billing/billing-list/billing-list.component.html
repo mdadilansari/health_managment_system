@@ -165,7 +165,7 @@
                 👁️ View
               </button>
               <button 
-                *ngIf="bill.status === 'OPEN'"
+                *ngIf="bill.status === 'OPEN' && canProcessPayment()"
                 class="btn btn-sm btn-success" 
                 title="Mark as Paid">
                 💳 Pay

@@ -13,27 +13,27 @@
             🏠 Dashboard
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="hasAccess(['admin', 'reception', 'doctor', 'billing'])">
           <a class="nav-link" routerLink="/patients" routerLinkActive="active">
             👥 Patients
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="hasAccess(['admin', 'reception', 'doctor'])">
           <a class="nav-link" routerLink="/doctors" routerLinkActive="active">
             👨‍⚕️ Doctors
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="hasAccess(['admin', 'reception', 'doctor', 'billing'])">
           <a class="nav-link" routerLink="/appointments" routerLinkActive="active">
             📅 Appointments
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="hasAccess(['admin', 'billing', 'reception'])">
           <a class="nav-link" routerLink="/billing" routerLinkActive="active">
             💰 Billing
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="hasAccess(['admin', 'doctor'])">
           <a class="nav-link" routerLink="/prescriptions" routerLinkActive="active">
             💊 Prescriptions
           </a>

@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { MockDataService } from '../../core/services/mock-data.service';
+import { UserRole } from '../../core/models/auth.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -25,14 +26,15 @@ export class DashboardComponent implements OnInit {
     bills: 0
   };
   
-  cards = [
+  allCards = [
     {
       title: 'Patients',
       description: 'View and manage patient records',
       icon: '👥',
       count: '60 Patients',
       route: '/patients',
-      color: 'primary'
+      color: 'primary',
+      allowedRoles: ['admin', 'reception', 'doctor', 'billing'] as UserRole[]
     },
     {
       title: 'Doctors',
@@ -40,7 +42,8 @@ export class DashboardComponent implements OnInit {
       icon: '👨‍⚕️',
       count: '25 Doctors',
       route: '/doctors',
-      color: 'success'
+      color: 'success',
+      allowedRoles: ['admin', 'reception', 'doctor'] as UserRole[]
     },
     {
       title: 'Appointments',
@@ -49,7 +52,8 @@ export class DashboardComponent implements OnInit {
       count: '50 Scheduled',
       route: '/appointments',
       color: 'info',
-      disabled: false
+      disabled: false,
+      allowedRoles: ['admin', 'reception', 'doctor', 'billing'] as UserRole[]
     },
     {
       title: 'Billing',
@@ -58,7 +62,8 @@ export class DashboardComponent implements OnInit {
       count: '30 Bills',
       route: '/billing',
       color: 'warning',
-      disabled: false
+      disabled: false,
+      allowedRoles: ['admin', 'billing', 'reception'] as UserRole[]
     },
     {
       title: 'Prescriptions',
@@ -67,9 +72,19 @@ export class DashboardComponent implements OnInit {
       count: '40 Active',
       route: '/prescriptions',
       color: 'secondary',
-      disabled: false
+      disabled: false,
+      allowedRoles: ['admin', 'doctor'] as UserRole[]
     }
   ];
+
+  get cards() {
+    const userRole = this.authService.getRole();
+    if (!userRole) return [];
+    
+    return this.allCards.filter(card => 
+      card.allowedRoles.includes(userRole)
+    );
+  }
 
   ngOnInit(): void {
     this.loadStats();
