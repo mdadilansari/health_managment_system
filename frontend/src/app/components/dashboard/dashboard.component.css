@@ -61,6 +61,33 @@
 }
 
 /* Module Cards */
+.dashboard-card-wrapper {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* Responsive card widths */
+@media (min-width: 576px) {
+  .dashboard-card-wrapper {
+    width: calc(50% - 1rem);
+  }
+}
+
+@media (min-width: 992px) {
+  .dashboard-card-wrapper {
+    width: calc(20% - 1.6rem);
+    min-width: 200px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dashboard-card-wrapper {
+    width: calc(20% - 1.6rem);
+    min-width: 220px;
+  }
+}
+
 .dashboard-card {
   transition: all 0.3s ease;
   border-width: 2px;
