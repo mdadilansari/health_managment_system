@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MockDataService } from '../../../core/services/mock-data.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Patient } from '../../../core/models/patient.model';
 import { Doctor } from '../../../core/models/doctor.model';
 import { Appointment } from '../../../core/models/appointment.model';
@@ -19,6 +20,7 @@ export class AppointmentBookComponent implements OnInit {
   private mockDataService = inject(MockDataService);
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private toastService = inject(ToastService);
 
   currentStep = signal(1);
   totalSteps = 4;
@@ -172,12 +174,13 @@ export class AppointmentBookComponent implements OnInit {
     this.mockDataService.createAppointment(appointmentData).subscribe({
       next: (appointment) => {
         this.loading.set(false);
-        alert(`✅ Appointment booked successfully!\nAppointment ID: #${appointment.appointment_id}`);
+        this.toastService.success(`Appointment booked successfully! Appointment ID: #${appointment.appointment_id}`);
         this.router.navigate(['/appointments']);
       },
       error: (err) => {
         this.loading.set(false);
         this.error.set('Failed to book appointment. Please try again.');
+        this.toastService.error('Failed to book appointment. Please try again.');
       }
     });
   }
