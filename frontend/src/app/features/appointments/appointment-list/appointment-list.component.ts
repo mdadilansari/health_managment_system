@@ -98,10 +98,51 @@ export class AppointmentListComponent implements OnInit {
   }
 
   cancelAppointment(appointment: Appointment): void {
-    // In real app, this would call a backend API
-    appointment.status = 'CANCELLED';
-    this.toastService.success(`Appointment #${appointment.appointment_id} has been cancelled`);
-    this.cdr.detectChanges();
+    if (!confirm(`Cancel appointment #${appointment.appointment_id}?`)) return;
+    this.appointmentService.cancelAppointment(appointment.appointment_id!).subscribe({
+      next: (updated) => {
+        appointment.status = updated.status;
+        this.toastService.success(`Appointment #${appointment.appointment_id} cancelled`);
+        this.applyFilters();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        const msg = err?.error?.error || 'Failed to cancel appointment';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
+  completeAppointment(appointment: Appointment): void {
+    if (!confirm(`Mark appointment #${appointment.appointment_id} as completed?`)) return;
+    this.appointmentService.completeAppointment(appointment.appointment_id!).subscribe({
+      next: (updated) => {
+        appointment.status = updated.status;
+        this.toastService.success(`Appointment #${appointment.appointment_id} marked as completed`);
+        this.applyFilters();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        const msg = err?.error?.error || 'Failed to complete appointment';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
+  noShowAppointment(appointment: Appointment): void {
+    if (!confirm(`Mark appointment #${appointment.appointment_id} as no-show?`)) return;
+    this.appointmentService.noShowAppointment(appointment.appointment_id!).subscribe({
+      next: (updated) => {
+        appointment.status = updated.status;
+        this.toastService.warning(`Appointment #${appointment.appointment_id} marked as no-show`);
+        this.applyFilters();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        const msg = err?.error?.error || 'Failed to mark no-show';
+        this.toastService.error(msg);
+      }
+    });
   }
 
   canBookAppointment(): boolean {
@@ -110,5 +151,9 @@ export class AppointmentListComponent implements OnInit {
 
   canCancelAppointment(): boolean {
     return this.authService.hasRole(['admin', 'reception']);
+  }
+
+  canCompleteOrNoShow(): boolean {
+    return this.authService.hasRole(['admin', 'doctor']);
   }
 }

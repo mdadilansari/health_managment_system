@@ -102,18 +102,32 @@
               </span>
             </td>
             <td>
-              <div class="btn-group btn-group-sm" role="group">
-                <button 
-                  class="btn btn-outline-danger btn-sm" 
-                  *ngIf="appointment.status === 'SCHEDULED' && canCancelAppointment()"
+              <div class="d-flex gap-1 flex-wrap" *ngIf="appointment.status === 'SCHEDULED'; else noActions">
+                <button
+                  class="btn btn-outline-success btn-sm"
+                  *ngIf="canCompleteOrNoShow()"
+                  (click)="completeAppointment(appointment)"
+                  title="Complete">
+                  ✅ Complete
+                </button>
+                <button
+                  class="btn btn-outline-warning btn-sm"
+                  *ngIf="canCompleteOrNoShow()"
+                  (click)="noShowAppointment(appointment)"
+                  title="No Show">
+                  🚫 No-Show
+                </button>
+                <button
+                  class="btn btn-outline-danger btn-sm"
+                  *ngIf="canCancelAppointment()"
                   (click)="cancelAppointment(appointment)"
                   title="Cancel">
                   ❌ Cancel
                 </button>
-                <span *ngIf="appointment.status !== 'SCHEDULED' || !canCancelAppointment()" class="text-muted small">
-                  {{ appointment.status }}
-                </span>
               </div>
+              <ng-template #noActions>
+                <span class="text-muted small">—</span>
+              </ng-template>
             </td>
           </tr>
         </tbody>

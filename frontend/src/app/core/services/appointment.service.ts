@@ -73,6 +73,36 @@ export class AppointmentService {
     );
   }
 
+  completeAppointment(id: number): Observable<Appointment> {
+    return this.http.patch<Appointment>(`${this.apiUrl}/appointments/${id}/complete`, {}).pipe(
+      tap(updated => {
+        const current = this.appointmentsSubject.value;
+        const index = current.findIndex(a => a.appointment_id === id);
+        if (index > -1) { current[index] = updated; this.appointmentsSubject.next([...current]); }
+      })
+    );
+  }
+
+  noShowAppointment(id: number): Observable<Appointment> {
+    return this.http.patch<Appointment>(`${this.apiUrl}/appointments/${id}/no-show`, {}).pipe(
+      tap(updated => {
+        const current = this.appointmentsSubject.value;
+        const index = current.findIndex(a => a.appointment_id === id);
+        if (index > -1) { current[index] = updated; this.appointmentsSubject.next([...current]); }
+      })
+    );
+  }
+
+  rescheduleAppointment(id: number, data: { slot_start?: string; slot_end?: string; appointment_date?: string; start_time?: string }): Observable<Appointment> {
+    return this.http.patch<Appointment>(`${this.apiUrl}/appointments/${id}/reschedule`, data).pipe(
+      tap(updated => {
+        const current = this.appointmentsSubject.value;
+        const index = current.findIndex(a => a.appointment_id === id);
+        if (index > -1) { current[index] = updated; this.appointmentsSubject.next([...current]); }
+      })
+    );
+  }
+
   deleteAppointment(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/appointments/${id}`).pipe(
       tap(() => {
