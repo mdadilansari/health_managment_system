@@ -49,10 +49,27 @@ export class BillingService {
       tap(updatedBill => {
         const current = this.billsSubject.value;
         const index = current.findIndex(b => b.bill_id === id);
-        if (index > -1) {
-          current[index] = updatedBill;
-          this.billsSubject.next([...current]);
-        }
+        if (index > -1) { current[index] = updatedBill; this.billsSubject.next([...current]); }
+      })
+    );
+  }
+
+  payBill(id: number): Observable<Bill> {
+    return this.http.patch<Bill>(`${this.apiUrl}/bills/${id}/pay`, {}).pipe(
+      tap(updatedBill => {
+        const current = this.billsSubject.value;
+        const index = current.findIndex(b => b.bill_id === id);
+        if (index > -1) { current[index] = updatedBill; this.billsSubject.next([...current]); }
+      })
+    );
+  }
+
+  voidBill(id: number): Observable<Bill> {
+    return this.http.patch<Bill>(`${this.apiUrl}/bills/${id}/void`, {}).pipe(
+      tap(updatedBill => {
+        const current = this.billsSubject.value;
+        const index = current.findIndex(b => b.bill_id === id);
+        if (index > -1) { current[index] = updatedBill; this.billsSubject.next([...current]); }
       })
     );
   }

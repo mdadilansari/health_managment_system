@@ -2,6 +2,7 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BillingService } from '../../../core/services/billing.service';
+import { PaymentService } from '../../../core/services/payment.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Bill, BillStatus } from '../../../core/models/billing.model';
@@ -15,6 +16,7 @@ import { Bill, BillStatus } from '../../../core/models/billing.model';
 })
 export class BillingListComponent implements OnInit {
   private billingService = inject(BillingService);
+  private paymentService = inject(PaymentService);
   private toastService = inject(ToastService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
@@ -26,7 +28,7 @@ export class BillingListComponent implements OnInit {
   
   selectedStatus: string = '';
   searchTerm: string = '';
-  statusOptions: BillStatus[] = ['PENDING', 'PAID', 'PARTIALLY_PAID', 'OVERDUE'];
+  statusOptions: BillStatus[] = ['OPEN', 'PAID', 'VOID', 'CANCELLED', 'CHARGED'];
 
   ngOnInit(): void {
     this.loadBills();
@@ -74,33 +76,57 @@ export class BillingListComponent implements OnInit {
 
   getStatusClass(status: BillStatus): string {
     const statusMap: Record<BillStatus, string> = {
-      'PENDING': 'bg-warning',
-      'PAID': 'bg-success',
-      'PARTIALLY_PAID': 'bg-info',
-      'OVERDUE': 'bg-danger',
       'OPEN': 'bg-warning',
-      'VOID': 'bg-danger'
+      'PAID': 'bg-success',
+      'VOID': 'bg-danger',
+      'CANCELLED': 'bg-secondary',
+      'CHARGED': 'bg-info'
     };
     return statusMap[status] || 'bg-secondary';
   }
 
-  calculateTotal(bill: Bill): number {
-    if (bill.line_items && bill.line_items.length > 0) {
-      return bill.line_items.reduce((sum, item) => sum + item.amount, 0);
-    }
+  getAmount(bill: Bill): number {
     return typeof bill.amount === 'string' ? parseFloat(bill.amount) : (bill.amount || 0);
+  }
+
+  payBill(bill: Bill): void {
+    if (!confirm(`Process payment for Bill #${bill.bill_id} (₹${this.getAmount(bill)})?`)) return;
+
+    const idempotencyKey = `bill-${bill.bill_id}-${Date.now()}`;
+    this.paymentService.createPayment(
+      { bill_id: bill.bill_id, amount: this.getAmount(bill), method: 'CASH' },
+      idempotencyKey
+    ).subscribe({
+      next: () => {
+        bill.status = 'PAID';
+        this.toastService.success(`Bill #${bill.bill_id} marked as PAID`);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        const msg = err?.error?.error || 'Failed to process payment';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
+  voidBill(bill: Bill): void {
+    if (!confirm(`Void Bill #${bill.bill_id}? This cannot be undone.`)) return;
+
+    this.billingService.voidBill(bill.bill_id).subscribe({
+      next: (updated) => {
+        bill.status = updated.status;
+        this.toastService.warning(`Bill #${bill.bill_id} has been voided`);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        const msg = err?.error?.error || 'Failed to void bill';
+        this.toastService.error(msg);
+      }
+    });
   }
 
   getPaidBillsCount(): number {
     return this.bills.filter(b => b.status === 'PAID').length;
-  }
-
-  getPendingBillsCount(): number {
-    return this.bills.filter(b => b.status === 'PENDING').length;
-  }
-
-  getOverdueBillsCount(): number {
-    return this.bills.filter(b => b.status === 'OVERDUE').length;
   }
 
   getOpenBillsCount(): number {
@@ -112,10 +138,7 @@ export class BillingListComponent implements OnInit {
   }
 
   viewBillDetails(bill: Bill): void {
-    const items = bill.line_items && bill.line_items.length > 0 
-      ? bill.line_items.map(item => `${item.description}: ₹${item.amount}`).join(', ')
-      : 'No line items';
-    this.toastService.info(`Bill #${bill.bill_id} - ${bill.patient_name || 'Patient #' + bill.patient_id} - Total: ₹${this.calculateTotal(bill)} - Status: ${bill.status}`);
+    this.toastService.info(`Bill #${bill.bill_id} — Patient #${bill.patient_id} — ₹${this.getAmount(bill)} — ${bill.status}`);
   }
 
   canProcessPayment(): boolean {

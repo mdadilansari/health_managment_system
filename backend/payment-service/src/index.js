@@ -2,11 +2,13 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
+const BILLING_SERVICE_URL      = process.env.BILLING_SERVICE_URL      || 'http://localhost:3004/api';
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007/api';
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -72,28 +74,61 @@ app.get('/api/payments/:id', async (req, res) => {
   }
 });
 
-// Create new payment
+// Create new payment (idempotent via Idempotency-Key header)
 app.post('/api/payments', async (req, res) => {
   try {
-    const { bill_id, patient_id, amount, payment_method, transaction_id, notes } = req.body;
+    const { bill_id, patient_id, amount, method, reference, notes } = req.body;
+    const idempotencyKey = req.headers['idempotency-key'];
 
-    // Validate required fields
-    if (!bill_id || !patient_id || !amount || !payment_method) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: bill_id, patient_id, amount, payment_method' 
+    if (!bill_id || !amount || !method) {
+      return res.status(400).json({
+        error: 'Missing required fields: bill_id, amount, method'
       });
     }
 
-    const payment_date = new Date().toISOString();
-    
+    // Idempotency — if same key seen before, return existing payment
+    if (idempotencyKey) {
+      const existing = await pool.query(
+        'SELECT * FROM payments WHERE reference = $1',
+        [idempotencyKey]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(200).json({ ...existing.rows[0], _idempotent: true });
+      }
+    }
+
+    const ref = idempotencyKey || reference || `HMS${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
     const result = await pool.query(
-      `INSERT INTO payments (bill_id, patient_id, amount, payment_date, payment_method, transaction_id, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO payments (bill_id, amount, method, reference, paid_at)
+       VALUES ($1, $2, $3, $4, NOW())
        RETURNING *`,
-      [bill_id, patient_id, amount, payment_date, payment_method, transaction_id || null, notes || null]
+      [bill_id, amount, method, ref]
     );
 
-    res.status(201).json(result.rows[0]);
+    const payment = result.rows[0];
+
+    // Mark bill as PAID (fire-and-forget)
+    try {
+      await axios.patch(`${BILLING_SERVICE_URL}/bills/${bill_id}/pay`, {}, { timeout: 3000 });
+      console.log(`[PaymentService] Bill #${bill_id} marked as PAID`);
+    } catch (err) {
+      console.error(`[PaymentService] Failed to mark bill #${bill_id} as paid:`, err.message);
+    }
+
+    // Send payment notification (fire-and-forget)
+    try {
+      await axios.post(`${NOTIFICATION_SERVICE_URL}/notifications`, {
+        type: 'PAYMENT_RECEIVED',
+        title: 'Payment Received',
+        message: `Payment of ₹${amount} received for Bill #${bill_id}. Reference: ${ref}`,
+        metadata: { bill_id, payment_id: payment.payment_id }
+      }, { timeout: 3000 });
+    } catch (err) {
+      console.error('[PaymentService] Failed to send notification:', err.message);
+    }
+
+    res.status(201).json(payment);
   } catch (error) {
     console.error('Error creating payment:', error);
     res.status(500).json({ error: 'Failed to create payment' });

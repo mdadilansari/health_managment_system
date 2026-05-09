@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const eventBus = require('./events/eventBus');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -197,7 +198,12 @@ app.post('/api/appointments', async (req, res) => {
       [patient_id, doctor_id, department || null, slotStart.toISOString(), slotEnd.toISOString()]
     );
 
-    res.status(201).json(result.rows[0]);
+    const created = result.rows[0];
+
+    // Publish event (fire-and-forget)
+    eventBus.publish('appointment.booked', created);
+
+    res.status(201).json(created);
   } catch (error) {
     console.error('Error creating appointment:', error);
     res.status(500).json({ error: 'Failed to create appointment' });
@@ -230,7 +236,12 @@ app.patch('/api/appointments/:id/cancel', async (req, res) => {
       [id]
     );
 
-    res.json({ ...result.rows[0], cancellationPolicy });
+    const cancelled = { ...result.rows[0], cancellationPolicy };
+
+    // Publish event (fire-and-forget)
+    eventBus.publish('appointment.cancelled', cancelled);
+
+    res.json(cancelled);
   } catch (error) {
     console.error('Error cancelling appointment:', error);
     res.status(500).json({ error: 'Failed to cancel appointment' });
@@ -258,7 +269,12 @@ app.patch('/api/appointments/:id/complete', async (req, res) => {
       [id]
     );
 
-    res.json(result.rows[0]);
+    const completed = result.rows[0];
+
+    // Publish event — triggers both sendNotification AND createBill
+    eventBus.publish('appointment.completed', completed);
+
+    res.json(completed);
   } catch (error) {
     console.error('Error completing appointment:', error);
     res.status(500).json({ error: 'Failed to complete appointment' });
@@ -285,6 +301,11 @@ app.patch('/api/appointments/:id/no-show', async (req, res) => {
       `UPDATE appointments SET status = 'NO_SHOW' WHERE appointment_id = $1 RETURNING *`,
       [id]
     );
+
+    const noShow = { ...result.rows[0], billType: 'NO_SHOW_FEE' };
+
+    // Publish event — triggers notification + no-show fee bill
+    eventBus.publish('appointment.no_show', noShow);
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -372,7 +393,12 @@ app.patch('/api/appointments/:id/reschedule', async (req, res) => {
       [newSlotStart.toISOString(), newSlotEnd.toISOString(), id]
     );
 
-    res.json(result.rows[0]);
+    const rescheduled = result.rows[0];
+
+    // Publish event (fire-and-forget)
+    eventBus.publish('appointment.rescheduled', rescheduled);
+
+    res.json(rescheduled);
   } catch (error) {
     console.error('Error rescheduling appointment:', error);
     res.status(500).json({ error: 'Failed to reschedule appointment' });

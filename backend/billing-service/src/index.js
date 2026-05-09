@@ -109,52 +109,76 @@ app.post('/api/bills', async (req, res) => {
   }
 });
 
-// Update bill (status, paid amount)
+// Update bill status (guarded — cannot edit PAID or VOID)
 app.patch('/api/bills/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { paid_amount, status, payment_method } = req.body;
+    const { status } = req.body;
 
-    let updateQuery = 'UPDATE bills SET ';
-    let updates = [];
-    let params = [];
-    let paramIndex = 1;
+    const existing = await pool.query('SELECT * FROM bills WHERE bill_id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Bill not found' });
 
-    if (paid_amount !== undefined) {
-      updates.push('paid_amount = $' + paramIndex);
-      params.push(paid_amount);
-      paramIndex++;
+    const bill = existing.rows[0];
+    if (['PAID', 'VOID'].includes(bill.status)) {
+      return res.status(400).json({ error: `Cannot modify a bill with status: ${bill.status}` });
     }
 
-    if (status) {
-      updates.push('status = $' + paramIndex);
-      params.push(status);
-      paramIndex++;
-    }
+    if (!status) return res.status(400).json({ error: 'No fields to update' });
 
-    if (payment_method) {
-      updates.push('payment_method = $' + paramIndex);
-      params.push(payment_method);
-      paramIndex++;
-    }
-
-    if (updates.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-
-    updateQuery += updates.join(', ') + ' WHERE bill_id = $' + paramIndex + ' RETURNING *';
-    params.push(id);
-
-    const result = await pool.query(updateQuery, params);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Bill not found' });
-    }
-
+    const result = await pool.query(
+      'UPDATE bills SET status = $1 WHERE bill_id = $2 RETURNING *',
+      [status, id]
+    );
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating bill:', error);
     res.status(500).json({ error: 'Failed to update bill' });
+  }
+});
+
+// Pay a bill — marks it PAID, idempotent
+app.patch('/api/bills/:id/pay', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await pool.query('SELECT * FROM bills WHERE bill_id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Bill not found' });
+
+    const bill = existing.rows[0];
+    if (bill.status === 'PAID') return res.status(200).json({ message: 'Bill already paid', bill });
+    if (bill.status === 'VOID') return res.status(400).json({ error: 'Cannot pay a voided bill' });
+
+    const result = await pool.query(
+      "UPDATE bills SET status = 'PAID' WHERE bill_id = $1 RETURNING *",
+      [id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error paying bill:', error);
+    res.status(500).json({ error: 'Failed to pay bill' });
+  }
+});
+
+// Void a bill
+app.patch('/api/bills/:id/void', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await pool.query('SELECT * FROM bills WHERE bill_id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Bill not found' });
+
+    const bill = existing.rows[0];
+    if (bill.status === 'PAID') return res.status(400).json({ error: 'Cannot void a paid bill' });
+    if (bill.status === 'VOID') return res.status(200).json({ message: 'Bill already voided', bill });
+
+    const result = await pool.query(
+      "UPDATE bills SET status = 'VOID' WHERE bill_id = $1 RETURNING *",
+      [id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error voiding bill:', error);
+    res.status(500).json({ error: 'Failed to void bill' });
   }
 });
 
@@ -191,6 +215,51 @@ app.get('/api/bills/patient/:patient_id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching patient bills:', error);
     res.status(500).json({ error: 'Failed to fetch patient bills' });
+  }
+});
+
+// Internal endpoint — called by other services via EventBus (not exposed to frontend)
+// To migrate to RabbitMQ: remove this endpoint, replace with a queue consumer
+app.post('/api/bills/internal', async (req, res) => {
+  try {
+    const { appointment_id, patient_id, bill_type } = req.body;
+
+    if (!appointment_id || !patient_id) {
+      return res.status(400).json({ error: 'Missing required fields: appointment_id, patient_id' });
+    }
+
+    // Idempotency — don't create duplicate bills for the same appointment + type
+    const existing = await pool.query(
+      'SELECT bill_id FROM bills WHERE appointment_id = $1 AND status != $2',
+      [appointment_id, 'VOID']
+    );
+    if (existing.rows.length > 0) {
+      return res.status(200).json({ message: 'Bill already exists', bill_id: existing.rows[0].bill_id });
+    }
+
+    // Base amounts per bill type (configurable)
+    const BASE_AMOUNTS = {
+      CONSULTATION: 500,
+      NO_SHOW_FEE:  200,
+    };
+    const TAX_RATE = 0.05; // 5% as per problem statement
+
+    const base   = BASE_AMOUNTS[bill_type] || BASE_AMOUNTS.CONSULTATION;
+    const tax    = parseFloat((base * TAX_RATE).toFixed(2));
+    const amount = parseFloat((base + tax).toFixed(2));
+
+    const result = await pool.query(
+      `INSERT INTO bills (appointment_id, patient_id, amount, status, created_at)
+       VALUES ($1, $2, $3, 'OPEN', NOW())
+       RETURNING *`,
+      [appointment_id, patient_id, amount]
+    );
+
+    console.log(`[BillingService] Bill #${result.rows[0].bill_id} created for appointment ${appointment_id} (${bill_type}, ₹${amount})`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating internal bill:', error);
+    res.status(500).json({ error: 'Failed to create bill' });
   }
 });
 

@@ -39,8 +39,11 @@ export class PaymentService {
     return this.http.get<Payment[]>(`${this.apiUrl}/payments/bill/${bill_id}`);
   }
 
-  createPayment(payment: Partial<Payment>): Observable<Payment> {
-    return this.http.post<Payment>(`${this.apiUrl}/payments`, payment).pipe(
+  createPayment(payment: { bill_id: number; amount: number; method: string; }, idempotencyKey?: string): Observable<Payment> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+
+    return this.http.post<Payment>(`${this.apiUrl}/payments`, payment, { headers }).pipe(
       tap(newPayment => {
         const current = this.paymentsSubject.value;
         this.paymentsSubject.next([...current, newPayment]);

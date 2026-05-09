@@ -147,10 +147,10 @@
             <td>Appt #{{ bill.appointment_id }}</td>
             <td>{{ bill.created_at | date:'mediumDate' }}</td>
             <td>
-              <small>{{ bill.line_items?.length || 0 }} item(s)</small>
+              <small class="text-muted">Appt #{{ bill.appointment_id || 'N/A' }}</small>
             </td>
             <td>
-              <strong>₹{{ calculateTotal(bill) | number:'1.2-2' }}</strong>
+              <strong>₹{{ getAmount(bill) | number:'1.2-2' }}</strong>
             </td>
             <td>
               <span class="badge" [ngClass]="getStatusClass(bill.status)">
@@ -158,18 +158,28 @@
               </span>
             </td>
             <td>
-              <button 
-                class="btn btn-sm btn-outline-primary me-1" 
-                (click)="viewBillDetails(bill)"
-                title="View Details">
-                👁️ View
-              </button>
-              <button 
-                *ngIf="bill.status === 'OPEN' && canProcessPayment()"
-                class="btn btn-sm btn-success" 
-                title="Mark as Paid">
-                💳 Pay
-              </button>
+              <div class="d-flex gap-1">
+                <button
+                  class="btn btn-sm btn-outline-primary"
+                  (click)="viewBillDetails(bill)"
+                  title="View Details">
+                  👁️ View
+                </button>
+                <button
+                  *ngIf="bill.status === 'OPEN' && canProcessPayment()"
+                  class="btn btn-sm btn-success"
+                  (click)="payBill(bill)"
+                  title="Process Payment">
+                  💳 Pay
+                </button>
+                <button
+                  *ngIf="bill.status === 'OPEN' && canProcessPayment()"
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="voidBill(bill)"
+                  title="Void Bill">
+                  ⛔ Void
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
