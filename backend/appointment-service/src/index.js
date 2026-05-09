@@ -44,7 +44,7 @@ app.get('/api/appointments', async (req, res) => {
     }
 
     if (date) {
-      conditions.push('DATE(appointment_date) = $' + (conditions.length + 1));
+      conditions.push('DATE(slot_start) = $' + (conditions.length + 1));
       params.push(date);
     }
 
@@ -85,24 +85,33 @@ app.get('/api/appointments/:id', async (req, res) => {
 // Create new appointment
 app.post('/api/appointments', async (req, res) => {
   try {
-    const { patient_id, doctor_id, appointment_date, time_slot, reason, notes } = req.body;
+    const { patient_id, doctor_id, department, appointment_date, start_time } = req.body;
 
     // Validate required fields
-    if (!patient_id || !doctor_id || !appointment_date || !time_slot) {
+    if (!patient_id || !doctor_id || !appointment_date || !start_time) {
       return res.status(400).json({ 
-        error: 'Missing required fields: patient_id, doctor_id, appointment_date, time_slot' 
+        error: 'Missing required fields: patient_id, doctor_id, appointment_date, start_time' 
       });
     }
 
+    // Convert '09:00 AM' style time + date string into a full datetime
+    const parseSlotDateTime = (date, timeStr) => {
+      const [time, meridiem] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (meridiem === 'PM' && hours !== 12) hours += 12;
+      if (meridiem === 'AM' && hours === 12) hours = 0;
+      return new Date(`${date}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`);
+    };
+
+    const slotStart = parseSlotDateTime(appointment_date, start_time);
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
     const status = 'SCHEDULED';
-    const reschedule_count = 0;
-    const created_at = new Date().toISOString();
 
     const result = await pool.query(
-      `INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, status, reason, notes, reschedule_count, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO appointments (patient_id, doctor_id, department, slot_start, slot_end, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
        RETURNING *`,
-      [patient_id, doctor_id, appointment_date, time_slot, status, reason || null, notes || null, reschedule_count, created_at]
+      [patient_id, doctor_id, department || null, slotStart.toISOString(), slotEnd.toISOString(), status]
     );
 
     res.status(201).json(result.rows[0]);
@@ -116,34 +125,30 @@ app.post('/api/appointments', async (req, res) => {
 app.put('/api/appointments/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { appointment_date, time_slot, status, reschedule_count } = req.body;
+    const { appointment_date, start_time, status } = req.body;
 
     let updateQuery = 'UPDATE appointments SET ';
     let updates = [];
     let params = [];
     let paramIndex = 1;
 
-    if (appointment_date) {
-      updates.push('appointment_date = $' + paramIndex);
-      params.push(appointment_date);
-      paramIndex++;
-    }
-
-    if (time_slot) {
-      updates.push('time_slot = $' + paramIndex);
-      params.push(time_slot);
-      paramIndex++;
+    if (appointment_date && start_time) {
+      const parseSlotDateTime = (date, timeStr) => {
+        const [time, meridiem] = timeStr.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (meridiem === 'PM' && hours !== 12) hours += 12;
+        if (meridiem === 'AM' && hours === 12) hours = 0;
+        return new Date(`${date}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`);
+      };
+      const slotStart = parseSlotDateTime(appointment_date, start_time);
+      const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+      updates.push('slot_start = $' + paramIndex); params.push(slotStart.toISOString()); paramIndex++;
+      updates.push('slot_end = $' + paramIndex); params.push(slotEnd.toISOString()); paramIndex++;
     }
 
     if (status) {
       updates.push('status = $' + paramIndex);
       params.push(status);
-      paramIndex++;
-    }
-
-    if (reschedule_count !== undefined) {
-      updates.push('reschedule_count = $' + paramIndex);
-      params.push(reschedule_count);
       paramIndex++;
     }
 
@@ -233,7 +238,9 @@ app.get('/api/appointments/slots/available', async (req, res) => {
 
     // Get booked slots for the doctor on that date
     const result = await pool.query(
-      'SELECT DISTINCT time_slot FROM appointments WHERE doctor_id = $1 AND DATE(appointment_date) = $2 AND status != $3',
+      `SELECT DISTINCT TO_CHAR(slot_start AT TIME ZONE 'UTC', 'HH:MI AM') AS time_slot
+       FROM appointments 
+       WHERE doctor_id = $1 AND DATE(slot_start) = $2 AND status != $3`,
       [doctor_id, date, 'CANCELLED']
     );
 

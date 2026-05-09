@@ -100,11 +100,25 @@ export class AppointmentBookComponent implements OnInit {
       }
     });
 
-    // Load available slots when date and doctor are selected
+    // Load available slots when doctor is selected
+    this.doctorForm.get('doctor_id')?.valueChanges.subscribe(doctorId => {
+      const date = this.dateTimeForm.get('appointment_date')?.value;
+      if (doctorId && date) {
+        this.loadAvailableSlots(doctorId, date);
+      } else {
+        this.availableSlots = [];
+        this.dateTimeForm.patchValue({ start_time: '' });
+      }
+    });
+
+    // Load available slots when date changes
     this.dateTimeForm.get('appointment_date')?.valueChanges.subscribe(date => {
       const doctorId = this.doctorForm.get('doctor_id')?.value;
       if (date && doctorId) {
         this.loadAvailableSlots(doctorId, date);
+      } else {
+        this.availableSlots = [];
+        this.dateTimeForm.patchValue({ start_time: '' });
       }
     });
   }
@@ -126,6 +140,14 @@ export class AppointmentBookComponent implements OnInit {
     const currentForm = this.getCurrentStepForm();
     if (currentForm && currentForm.valid) {
       this.currentStep.update(step => Math.min(step + 1, this.totalSteps));
+      // When entering step 3, reload slots if doctor and date are already set
+      if (this.currentStep() === 3) {
+        const doctorId = this.doctorForm.get('doctor_id')?.value;
+        const date = this.dateTimeForm.get('appointment_date')?.value;
+        if (doctorId && date) {
+          this.loadAvailableSlots(doctorId, date);
+        }
+      }
     } else {
       currentForm?.markAllAsTouched();
     }
@@ -174,25 +196,12 @@ export class AppointmentBookComponent implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    const selectedDate = this.dateTimeForm.value.appointment_date;
-    const selectedTime = this.dateTimeForm.value.start_time;
-    const [hours, minutes] = selectedTime.replace(' AM', '').replace(' PM', '').split(':');
-    const isPM = selectedTime.includes('PM');
-    const hour = isPM && hours !== '12' ? parseInt(hours) + 12 : parseInt(hours);
-    
-    const slotStart = new Date(selectedDate);
-    slotStart.setHours(hour, parseInt(minutes), 0);
-    
-    const slotEnd = new Date(slotStart);
-    slotEnd.setMinutes(slotEnd.getMinutes() + 30);
-
     const appointmentData = {
       patient_id: Number(this.patientForm.value.patient_id),
       doctor_id: Number(this.doctorForm.value.doctor_id),
-      appointment_date: selectedDate + 'T' + this.dateTimeForm.value.start_time,
-      time_slot: this.dateTimeForm.value.start_time,
-      reason: 'Appointment',
-      notes: ''
+      department: this.doctorForm.value.department,
+      appointment_date: this.dateTimeForm.value.appointment_date,
+      start_time: this.dateTimeForm.value.start_time
     };
 
     this.appointmentService.createAppointment(appointmentData).subscribe({

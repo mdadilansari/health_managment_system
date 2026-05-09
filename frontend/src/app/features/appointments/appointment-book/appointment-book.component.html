@@ -72,7 +72,7 @@
                         [disabled]="!doctorForm.get('department')?.value">
                   <option value="">Choose a doctor...</option>
                   <option *ngFor="let doctor of filteredDoctors" [value]="doctor.doctor_id">
-                    Dr. {{ doctor.name }} - {{ doctor.specialization }}
+                    {{ doctor.name }} - {{ doctor.specialization }}
                   </option>
                 </select>
                 <div *ngIf="doctorForm.get('doctor_id')?.touched && doctorForm.get('doctor_id')?.invalid" 
@@ -107,6 +107,12 @@
                     {{ slot }}
                   </button>
                 </div>
+                <div *ngIf="!dateTimeForm.get('appointment_date')?.value" class="text-muted small mt-1">
+                  Select a date above to see available slots
+                </div>
+                <div *ngIf="dateTimeForm.get('appointment_date')?.value && availableSlots.length === 0" class="text-warning small mt-1">
+                  No available slots for this date. Please choose another date.
+                </div>
                 <div *ngIf="dateTimeForm.get('start_time')?.touched && dateTimeForm.get('start_time')?.invalid" 
                      class="text-danger small mt-1">
                   Please select a time slot
@@ -126,7 +132,7 @@
                 <h6 class="alert-heading">📋 Appointment Summary</h6>
                 <hr>
                 <p class="mb-1"><strong>Patient:</strong> {{ getSelectedPatient()?.name || 'Not selected' }}</p>
-                <p class="mb-1"><strong>Doctor:</strong> Dr. {{ getSelectedDoctor()?.name || 'Not selected' }}</p>
+                <p class="mb-1"><strong>Doctor:</strong> {{ getSelectedDoctor()?.name || 'Not selected' }}</p>
                 <p class="mb-1"><strong>Department:</strong> {{ doctorForm.get('department')?.value || 'N/A' }}</p>
                 <p class="mb-1"><strong>Date:</strong> {{ dateTimeForm.get('appointment_date')?.value | date:'fullDate' }}</p>
                 <p class="mb-0"><strong>Time:</strong> {{ dateTimeForm.get('start_time')?.value || 'Not selected' }}</p>
