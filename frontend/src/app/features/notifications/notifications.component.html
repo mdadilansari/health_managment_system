@@ -26,7 +26,7 @@
       </div>
       <div class="notification-content">
         <p class="notification-message mb-1">{{ notification.message }}</p>
-        <small class="notification-time text-muted">{{ getTimeAgo(notification.timestamp) }}</small>
+        <small class="notification-time text-muted">{{ getTimeAgo(notification.created_at) }}</small>
       </div>
       <div class="notification-badge" *ngIf="!notification.read">
         <span class="badge bg-primary">New</span>

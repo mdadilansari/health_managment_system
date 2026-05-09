@@ -78,9 +78,9 @@ export class MockDataService {
 
   // Mock Notifications
   private notifications: Notification[] = [
-    { id: 1, type: 'APPOINTMENT_CONFIRMED', message: 'Appointment confirmed for Patient 1', timestamp: new Date(), read: false },
-    { id: 2, type: 'PAYMENT_RECEIVED', message: 'Payment of ₹500 received', timestamp: new Date(), read: false },
-    { id: 3, type: 'BILL_REMINDER', message: 'Bill #123 is due', timestamp: new Date(), read: true }
+    { id: 1, type: 'APPOINTMENT_CONFIRMED', title: 'Appointment Confirmed', message: 'Appointment confirmed for Patient 1', created_at: new Date().toISOString(), read: false },
+    { id: 2, type: 'PAYMENT_RECEIVED', title: 'Payment Received', message: 'Payment of ₹500 received', created_at: new Date().toISOString(), read: false },
+    { id: 3, type: 'BILL_REMINDER', title: 'Bill Reminder', message: 'Bill #123 is due', created_at: new Date().toISOString(), read: true }
   ];
 
   // Getters with Observable (simulating API calls)

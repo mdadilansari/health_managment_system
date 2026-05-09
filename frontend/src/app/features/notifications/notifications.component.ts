@@ -22,7 +22,7 @@ export class NotificationsComponent {
     this.notificationService.markAllAsRead();
   }
 
-  getTimeAgo(timestamp: Date): string {
+  getTimeAgo(timestamp: string | Date): string {
     const now = new Date();
     const diff = now.getTime() - new Date(timestamp).getTime();
     const minutes = Math.floor(diff / 60000);
@@ -36,6 +36,17 @@ export class NotificationsComponent {
   }
 
   getIcon(type: string): string {
-    return this.notificationService.getIconForType(type as any);
+    const iconMap: Record<string, string> = {
+      APPOINTMENT_CONFIRMED:   '📅',
+      APPOINTMENT_COMPLETED:   '✅',
+      APPOINTMENT_RESCHEDULED: '🔄',
+      APPOINTMENT_CANCELLED:   '❌',
+      APPOINTMENT_NO_SHOW:     '🚫',
+      PAYMENT_RECEIVED:        '💳',
+      PAYMENT_REFUND:          '↩️',
+      BILL_GENERATED:          '🧾',
+      BILL_REMINDER:           '⚠️',
+    };
+    return iconMap[type] || '🔔';
   }
 }
