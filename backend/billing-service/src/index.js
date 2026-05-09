@@ -1,7 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3004;
@@ -9,6 +11,13 @@ const PORT = process.env.PORT || 3004;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -20,7 +29,7 @@ app.get('/health', (req, res) => {
 });
 
 // Get all bills with optional status filter
-app.get('/api/bills', async (req, res) => {
+app.get('/v1/bills', async (req, res) => {
   try {
     const { status, patient_id } = req.query;
     
@@ -47,13 +56,13 @@ app.get('/api/bills', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching bills:', error);
+    logger.error('Error fetching bills:', error);
     res.status(500).json({ error: 'Failed to fetch bills' });
   }
 });
 
 // Get single bill by ID
-app.get('/api/bills/:id', async (req, res) => {
+app.get('/v1/bills/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -67,13 +76,13 @@ app.get('/api/bills/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching bill:', error);
+    logger.error('Error fetching bill:', error);
     res.status(500).json({ error: 'Failed to fetch bill' });
   }
 });
 
 // Create new bill
-app.post('/api/bills', async (req, res) => {
+app.post('/v1/bills', async (req, res) => {
   try {
     const { patient_id, appointment_id, line_items, paid_amount = 0 } = req.body;
 
@@ -104,13 +113,13 @@ app.post('/api/bills', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating bill:', error);
+    logger.error('Error creating bill:', error);
     res.status(500).json({ error: 'Failed to create bill' });
   }
 });
 
-// Update bill status (guarded — cannot edit PAID or VOID)
-app.patch('/api/bills/:id', async (req, res) => {
+// Update bill status (guarded â€” cannot edit PAID or VOID)
+app.patch('/v1/bills/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -131,13 +140,13 @@ app.patch('/api/bills/:id', async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating bill:', error);
+    logger.error('Error updating bill:', error);
     res.status(500).json({ error: 'Failed to update bill' });
   }
 });
 
-// Pay a bill — marks it PAID, idempotent
-app.patch('/api/bills/:id/pay', async (req, res) => {
+// Pay a bill â€” marks it PAID, idempotent
+app.patch('/v1/bills/:id/pay', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -154,13 +163,13 @@ app.patch('/api/bills/:id/pay', async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error paying bill:', error);
+    logger.error('Error paying bill:', error);
     res.status(500).json({ error: 'Failed to pay bill' });
   }
 });
 
 // Void a bill
-app.patch('/api/bills/:id/void', async (req, res) => {
+app.patch('/v1/bills/:id/void', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -177,13 +186,13 @@ app.patch('/api/bills/:id/void', async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error voiding bill:', error);
+    logger.error('Error voiding bill:', error);
     res.status(500).json({ error: 'Failed to void bill' });
   }
 });
 
 // Delete bill
-app.delete('/api/bills/:id', async (req, res) => {
+app.delete('/v1/bills/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -198,13 +207,13 @@ app.delete('/api/bills/:id', async (req, res) => {
 
     res.json({ message: 'Bill deleted successfully', bill: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting bill:', error);
+    logger.error('Error deleting bill:', error);
     res.status(500).json({ error: 'Failed to delete bill' });
   }
 });
 
 // Get bills by patient ID
-app.get('/api/bills/patient/:patient_id', async (req, res) => {
+app.get('/v1/bills/patient/:patient_id', async (req, res) => {
   try {
     const { patient_id } = req.params;
     const result = await pool.query(
@@ -213,14 +222,14 @@ app.get('/api/bills/patient/:patient_id', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching patient bills:', error);
+    logger.error('Error fetching patient bills:', error);
     res.status(500).json({ error: 'Failed to fetch patient bills' });
   }
 });
 
-// Internal endpoint — called by other services via EventBus (not exposed to frontend)
+// Internal endpoint â€” called by other services via EventBus (not exposed to frontend)
 // To migrate to RabbitMQ: remove this endpoint, replace with a queue consumer
-app.post('/api/bills/internal', async (req, res) => {
+app.post('/v1/bills/internal', async (req, res) => {
   try {
     const { appointment_id, patient_id, bill_type } = req.body;
 
@@ -228,7 +237,7 @@ app.post('/api/bills/internal', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: appointment_id, patient_id' });
     }
 
-    // Idempotency — don't create duplicate bills for the same appointment + type
+    // Idempotency â€” don't create duplicate bills for the same appointment + type
     const existing = await pool.query(
       'SELECT bill_id FROM bills WHERE appointment_id = $1 AND status != $2',
       [appointment_id, 'VOID']
@@ -255,17 +264,21 @@ app.post('/api/bills/internal', async (req, res) => {
       [appointment_id, patient_id, amount]
     );
 
-    console.log(`[BillingService] Bill #${result.rows[0].bill_id} created for appointment ${appointment_id} (${bill_type}, ₹${amount})`);
+    logger.info(`[BillingService] Bill #${result.rows[0].bill_id} created for appointment ${appointment_id} (${bill_type}, â‚¹${amount})`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating internal bill:', error);
+    logger.error('Error creating internal bill:', error);
     res.status(500).json({ error: 'Failed to create bill' });
   }
 });
 
+// Error handler (must be last middleware)
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Billing Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`💰 Billing API: http://localhost:${PORT}/api/bills`);
+  logger.info(`ðŸš€ Billing Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ’° Billing API: http://localhost:${PORT}/api/bills`);
 });
+

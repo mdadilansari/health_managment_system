@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+﻿import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -8,7 +8,7 @@ import { Prescription } from '../models/prescription.model';
   providedIn: 'root'
 })
 export class PrescriptionService {
-  private apiUrl = 'http://localhost:3006/api';
+  private apiUrl = 'http://localhost:3006/v1';
   private prescriptionsSubject = new BehaviorSubject<Prescription[]>([]);
   prescriptions$ = this.prescriptionsSubject.asObservable();
 
@@ -68,3 +68,4 @@ export class PrescriptionService {
     );
   }
 }
+

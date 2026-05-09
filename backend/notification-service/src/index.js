@@ -1,7 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3007;
@@ -9,7 +11,14 @@ const PORT = process.env.PORT || 3007;
 app.use(cors());
 app.use(express.json());
 
-// ── Auto-create table on startup ──────────────────────────────────────────────
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
+
+// â”€â”€ Auto-create table on startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function initDb() {
   await pool.query(`
@@ -25,20 +34,20 @@ async function initDb() {
       created_at    TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  console.log('✓ notifications table ready');
+  logger.info('âœ“ notifications table ready');
 }
 
-initDb().catch(err => console.error('DB init error:', err));
+initDb().catch(err => logger.error('DB init error:', err));
 
-// ── Health ────────────────────────────────────────────────────────────────────
+// â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.get('/health', (req, res) => {
   res.json({ status: 'UP', service: 'notification-service', timestamp: new Date().toISOString() });
 });
 
-// ── GET all notifications ─────────────────────────────────────────────────────
+// â”€â”€ GET all notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.get('/api/notifications', async (req, res) => {
+app.get('/v1/notifications', async (req, res) => {
   try {
     const { recipient_id, recipient_role, read } = req.query;
     let query = 'SELECT * FROM notifications';
@@ -64,26 +73,26 @@ app.get('/api/notifications', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching notifications:', error);
+    logger.error('Error fetching notifications:', error);
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
 
-// ── GET unread count ──────────────────────────────────────────────────────────
+// â”€â”€ GET unread count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.get('/api/notifications/unread-count', async (req, res) => {
+app.get('/v1/notifications/unread-count', async (req, res) => {
   try {
     const result = await pool.query(`SELECT COUNT(*) FROM notifications WHERE read = FALSE`);
     res.json({ count: parseInt(result.rows[0].count, 10) });
   } catch (error) {
-    console.error('Error fetching unread count:', error);
+    logger.error('Error fetching unread count:', error);
     res.status(500).json({ error: 'Failed to fetch unread count' });
   }
 });
 
-// ── POST create notification ──────────────────────────────────────────────────
+// â”€â”€ POST create notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.post('/api/notifications', async (req, res) => {
+app.post('/v1/notifications', async (req, res) => {
   try {
     const { type, title, message, recipient_id, recipient_role, metadata } = req.body;
 
@@ -105,17 +114,17 @@ app.post('/api/notifications', async (req, res) => {
       ]
     );
 
-    console.log(`[NOTIFICATION] ${type}: ${message}`);
+    logger.info(`[NOTIFICATION] ${type}: ${message}`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating notification:', error);
+    logger.error('Error creating notification:', error);
     res.status(500).json({ error: 'Failed to create notification' });
   }
 });
 
-// ── PATCH mark single as read ─────────────────────────────────────────────────
+// â”€â”€ PATCH mark single as read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.patch('/api/notifications/:id/read', async (req, res) => {
+app.patch('/v1/notifications/:id/read', async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE notifications SET read = TRUE WHERE id = $1 RETURNING *`,
@@ -124,26 +133,26 @@ app.patch('/api/notifications/:id/read', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Notification not found' });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error marking notification as read:', error);
+    logger.error('Error marking notification as read:', error);
     res.status(500).json({ error: 'Failed to mark notification as read' });
   }
 });
 
-// ── PATCH mark all as read ────────────────────────────────────────────────────
+// â”€â”€ PATCH mark all as read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.patch('/api/notifications/read-all', async (req, res) => {
+app.patch('/v1/notifications/read-all', async (req, res) => {
   try {
     await pool.query(`UPDATE notifications SET read = TRUE WHERE read = FALSE`);
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {
-    console.error('Error marking all notifications as read:', error);
+    logger.error('Error marking all notifications as read:', error);
     res.status(500).json({ error: 'Failed to mark all notifications as read' });
   }
 });
 
-// ── DELETE notification ───────────────────────────────────────────────────────
+// â”€â”€ DELETE notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.delete('/api/notifications/:id', async (req, res) => {
+app.delete('/v1/notifications/:id', async (req, res) => {
   try {
     const result = await pool.query(
       `DELETE FROM notifications WHERE id = $1 RETURNING *`,
@@ -152,15 +161,16 @@ app.delete('/api/notifications/:id', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Notification not found' });
     res.json({ message: 'Notification deleted' });
   } catch (error) {
-    console.error('Error deleting notification:', error);
+    logger.error('Error deleting notification:', error);
     res.status(500).json({ error: 'Failed to delete notification' });
   }
 });
 
-// ── Start server ──────────────────────────────────────────────────────────────
+// â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.listen(PORT, () => {
-  console.log(`🚀 Notification Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔔 Notifications API: http://localhost:${PORT}/api/notifications`);
+  logger.info(`ðŸš€ Notification Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ”” Notifications API: http://localhost:${PORT}/api/notifications`);
 });
+

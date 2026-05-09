@@ -1,4 +1,4 @@
-import { Injectable, signal, inject } from '@angular/core';
+﻿import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Notification, NotificationType } from '../models/notification.model';
 
@@ -7,7 +7,7 @@ import { Notification, NotificationType } from '../models/notification.model';
 })
 export class NotificationService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:3007/api';
+  private apiUrl = 'http://localhost:3007/v1';
 
   private notifications = signal<Notification[]>([]);
   public readonly allNotifications = this.notifications.asReadonly();
@@ -75,3 +75,4 @@ export class NotificationService {
     });
   }
 }
+

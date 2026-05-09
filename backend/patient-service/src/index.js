@@ -1,7 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -9,6 +11,13 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -20,20 +29,20 @@ app.get('/health', (req, res) => {
 });
 
 // Get all patients
-app.get('/api/patients', async (req, res) => {
+app.get('/v1/patients', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM patients ORDER BY patient_id ASC'
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching patients:', error);
+    logger.error('Error fetching patients:', error);
     res.status(500).json({ error: 'Failed to fetch patients' });
   }
 });
 
 // Get single patient by ID
-app.get('/api/patients/:id', async (req, res) => {
+app.get('/v1/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -47,13 +56,13 @@ app.get('/api/patients/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching patient:', error);
+    logger.error('Error fetching patient:', error);
     res.status(500).json({ error: 'Failed to fetch patient' });
   }
 });
 
 // Create new patient
-app.post('/api/patients', async (req, res) => {
+app.post('/v1/patients', async (req, res) => {
   try {
     const { name, email, phone, dob, gender, address } = req.body;
 
@@ -75,13 +84,13 @@ app.post('/api/patients', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating patient:', error);
+    logger.error('Error creating patient:', error);
     res.status(500).json({ error: 'Failed to create patient' });
   }
 });
 
 // Update patient
-app.put('/api/patients/:id', async (req, res) => {
+app.put('/v1/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, dob, gender, address } = req.body;
@@ -141,13 +150,13 @@ app.put('/api/patients/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating patient:', error);
+    logger.error('Error updating patient:', error);
     res.status(500).json({ error: 'Failed to update patient' });
   }
 });
 
 // Delete patient
-app.delete('/api/patients/:id', async (req, res) => {
+app.delete('/v1/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -162,14 +171,18 @@ app.delete('/api/patients/:id', async (req, res) => {
 
     res.json({ message: 'Patient deleted successfully', patient: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting patient:', error);
+    logger.error('Error deleting patient:', error);
     res.status(500).json({ error: 'Failed to delete patient' });
   }
 });
 
+// Error handler (must be last middleware)
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Patient Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`👥 Patients API: http://localhost:${PORT}/api/patients`);
+  logger.info(`ðŸš€ Patient Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ‘¥ Patients API: http://localhost:${PORT}/api/patients`);
 });
+

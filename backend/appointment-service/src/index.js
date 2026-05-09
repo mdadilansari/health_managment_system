@@ -1,7 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 const eventBus = require('./events/eventBus');
 
 const app = express();
@@ -11,7 +13,7 @@ const DOCTOR_DAILY_CAP = parseInt(process.env.DOCTOR_DAILY_CAP || '16');
 const LEAD_TIME_HOURS = parseInt(process.env.LEAD_TIME_HOURS || '2');
 const MAX_RESCHEDULES = parseInt(process.env.MAX_RESCHEDULES || '2');
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function parseSlotDateTime(date, timeStr) {
   const [time, meridiem] = timeStr.split(' ');
@@ -56,20 +58,27 @@ async function getDoctorDailyCount(doctor_id, date) {
   return parseInt(result.rows[0].count, 10);
 }
 
-// ── Middleware ────────────────────────────────────────────────────────────────
+// â”€â”€ Middleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.use(cors());
 app.use(express.json());
 
-// ── Health ────────────────────────────────────────────────────────────────────
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
+
+// â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.get('/health', (req, res) => {
   res.json({ status: 'UP', service: 'appointment-service', timestamp: new Date().toISOString() });
 });
 
-// ── GET all appointments ──────────────────────────────────────────────────────
+// â”€â”€ GET all appointments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.get('/api/appointments', async (req, res) => {
+app.get('/v1/appointments', async (req, res) => {
   try {
     const { status, doctor_id, patient_id, date } = req.query;
     let query = 'SELECT * FROM appointments';
@@ -86,14 +95,14 @@ app.get('/api/appointments', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching appointments:', error);
+    logger.error('Error fetching appointments:', error);
     res.status(500).json({ error: 'Failed to fetch appointments' });
   }
 });
 
-// ── GET single appointment ────────────────────────────────────────────────────
+// â”€â”€ GET single appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.get('/api/appointments/:id', async (req, res) => {
+app.get('/v1/appointments/:id', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM appointments WHERE appointment_id = $1',
@@ -102,14 +111,14 @@ app.get('/api/appointments/:id', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching appointment:', error);
+    logger.error('Error fetching appointment:', error);
     res.status(500).json({ error: 'Failed to fetch appointment' });
   }
 });
 
-// ── GET available slots ───────────────────────────────────────────────────────
+// â”€â”€ GET available slots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.get('/api/appointments/slots/available', async (req, res) => {
+app.get('/v1/appointments/slots/available', async (req, res) => {
   try {
     const { doctor_id, date } = req.query;
     if (!doctor_id || !date) {
@@ -140,14 +149,14 @@ app.get('/api/appointments/slots/available', async (req, res) => {
     const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot));
     res.json(availableSlots);
   } catch (error) {
-    console.error('Error fetching available slots:', error);
+    logger.error('Error fetching available slots:', error);
     res.status(500).json({ error: 'Failed to fetch available slots' });
   }
 });
 
-// ── POST create appointment ───────────────────────────────────────────────────
+// â”€â”€ POST create appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.post('/api/appointments', async (req, res) => {
+app.post('/v1/appointments', async (req, res) => {
   try {
     const { patient_id, doctor_id, department, appointment_date, start_time, slot_start, slot_end } = req.body;
 
@@ -167,7 +176,7 @@ app.post('/api/appointments', async (req, res) => {
       return res.status(400).json({ error: 'Provide either slot_start+slot_end or appointment_date+start_time' });
     }
 
-    // 1. Lead time validation — must book at least LEAD_TIME_HOURS before slot
+    // 1. Lead time validation â€” must book at least LEAD_TIME_HOURS before slot
     const now = new Date();
     const leadTimeMs = LEAD_TIME_HOURS * 60 * 60 * 1000;
     if (slotStart.getTime() - now.getTime() < leadTimeMs) {
@@ -176,7 +185,7 @@ app.post('/api/appointments', async (req, res) => {
       });
     }
 
-    // 2. Slot collision — doctor can't have overlapping active appointments
+    // 2. Slot collision â€” doctor can't have overlapping active appointments
     const conflict = await hasSlotConflict(doctor_id, slotStart, slotEnd);
     if (conflict) {
       return res.status(409).json({ error: 'This time slot is already booked for the selected doctor' });
@@ -205,14 +214,14 @@ app.post('/api/appointments', async (req, res) => {
 
     res.status(201).json(created);
   } catch (error) {
-    console.error('Error creating appointment:', error);
+    logger.error('Error creating appointment:', error);
     res.status(500).json({ error: 'Failed to create appointment' });
   }
 });
 
-// ── PATCH cancel ──────────────────────────────────────────────────────────────
+// â”€â”€ PATCH cancel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.patch('/api/appointments/:id/cancel', async (req, res) => {
+app.patch('/v1/appointments/:id/cancel', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -243,14 +252,14 @@ app.patch('/api/appointments/:id/cancel', async (req, res) => {
 
     res.json(cancelled);
   } catch (error) {
-    console.error('Error cancelling appointment:', error);
+    logger.error('Error cancelling appointment:', error);
     res.status(500).json({ error: 'Failed to cancel appointment' });
   }
 });
 
-// ── PATCH complete ────────────────────────────────────────────────────────────
+// â”€â”€ PATCH complete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.patch('/api/appointments/:id/complete', async (req, res) => {
+app.patch('/v1/appointments/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -271,19 +280,19 @@ app.patch('/api/appointments/:id/complete', async (req, res) => {
 
     const completed = result.rows[0];
 
-    // Publish event — triggers both sendNotification AND createBill
+    // Publish event â€” triggers both sendNotification AND createBill
     eventBus.publish('appointment.completed', completed);
 
     res.json(completed);
   } catch (error) {
-    console.error('Error completing appointment:', error);
+    logger.error('Error completing appointment:', error);
     res.status(500).json({ error: 'Failed to complete appointment' });
   }
 });
 
-// ── PATCH no-show ─────────────────────────────────────────────────────────────
+// â”€â”€ PATCH no-show â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.patch('/api/appointments/:id/no-show', async (req, res) => {
+app.patch('/v1/appointments/:id/no-show', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -304,19 +313,19 @@ app.patch('/api/appointments/:id/no-show', async (req, res) => {
 
     const noShow = { ...result.rows[0], billType: 'NO_SHOW_FEE' };
 
-    // Publish event — triggers notification + no-show fee bill
+    // Publish event â€” triggers notification + no-show fee bill
     eventBus.publish('appointment.no_show', noShow);
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error marking no-show:', error);
+    logger.error('Error marking no-show:', error);
     res.status(500).json({ error: 'Failed to mark appointment as no-show' });
   }
 });
 
-// ── PATCH reschedule ──────────────────────────────────────────────────────────
+// â”€â”€ PATCH reschedule â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.patch('/api/appointments/:id/reschedule', async (req, res) => {
+app.patch('/v1/appointments/:id/reschedule', async (req, res) => {
   try {
     const { id } = req.params;
     const { appointment_date, start_time, slot_start, slot_end } = req.body;
@@ -400,14 +409,14 @@ app.patch('/api/appointments/:id/reschedule', async (req, res) => {
 
     res.json(rescheduled);
   } catch (error) {
-    console.error('Error rescheduling appointment:', error);
+    logger.error('Error rescheduling appointment:', error);
     res.status(500).json({ error: 'Failed to reschedule appointment' });
   }
 });
 
-// ── DELETE appointment ────────────────────────────────────────────────────────
+// â”€â”€ DELETE appointment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.delete('/api/appointments/:id', async (req, res) => {
+app.delete('/v1/appointments/:id', async (req, res) => {
   try {
     const result = await pool.query(
       'DELETE FROM appointments WHERE appointment_id = $1 RETURNING *',
@@ -416,15 +425,16 @@ app.delete('/api/appointments/:id', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
     res.json({ message: 'Appointment deleted successfully', appointment: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting appointment:', error);
+    logger.error('Error deleting appointment:', error);
     res.status(500).json({ error: 'Failed to delete appointment' });
   }
 });
 
-// ── Start server ──────────────────────────────────────────────────────────────
+// â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.listen(PORT, () => {
-  console.log(`🚀 Appointment Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📅 Appointments API: http://localhost:${PORT}/api/appointments`);
+  logger.info(`ðŸš€ Appointment Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ“… Appointments API: http://localhost:${PORT}/api/appointments`);
 });
+

@@ -1,7 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3006;
@@ -9,6 +11,13 @@ const PORT = process.env.PORT || 3006;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -20,7 +29,7 @@ app.get('/health', (req, res) => {
 });
 
 // Get all prescriptions with optional filters
-app.get('/api/prescriptions', async (req, res) => {
+app.get('/v1/prescriptions', async (req, res) => {
   try {
     const { patient_id, doctor_id, appointment_id } = req.query;
     
@@ -52,13 +61,13 @@ app.get('/api/prescriptions', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching prescriptions:', error);
+    logger.error('Error fetching prescriptions:', error);
     res.status(500).json({ error: 'Failed to fetch prescriptions' });
   }
 });
 
 // Get single prescription by ID
-app.get('/api/prescriptions/:id', async (req, res) => {
+app.get('/v1/prescriptions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -72,13 +81,13 @@ app.get('/api/prescriptions/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching prescription:', error);
+    logger.error('Error fetching prescription:', error);
     res.status(500).json({ error: 'Failed to fetch prescription' });
   }
 });
 
 // Create new prescription
-app.post('/api/prescriptions', async (req, res) => {
+app.post('/v1/prescriptions', async (req, res) => {
   try {
     const { patient_id, doctor_id, appointment_id, medications, instructions, follow_up_date } = req.body;
 
@@ -106,13 +115,13 @@ app.post('/api/prescriptions', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating prescription:', error);
+    logger.error('Error creating prescription:', error);
     res.status(500).json({ error: 'Failed to create prescription' });
   }
 });
 
 // Update prescription
-app.put('/api/prescriptions/:id', async (req, res) => {
+app.put('/v1/prescriptions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { medications, instructions, follow_up_date } = req.body;
@@ -154,13 +163,13 @@ app.put('/api/prescriptions/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating prescription:', error);
+    logger.error('Error updating prescription:', error);
     res.status(500).json({ error: 'Failed to update prescription' });
   }
 });
 
 // Delete prescription
-app.delete('/api/prescriptions/:id', async (req, res) => {
+app.delete('/v1/prescriptions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -175,13 +184,13 @@ app.delete('/api/prescriptions/:id', async (req, res) => {
 
     res.json({ message: 'Prescription deleted successfully', prescription: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting prescription:', error);
+    logger.error('Error deleting prescription:', error);
     res.status(500).json({ error: 'Failed to delete prescription' });
   }
 });
 
 // Get prescriptions by patient ID
-app.get('/api/prescriptions/patient/:patient_id', async (req, res) => {
+app.get('/v1/prescriptions/patient/:patient_id', async (req, res) => {
   try {
     const { patient_id } = req.params;
     const result = await pool.query(
@@ -190,14 +199,18 @@ app.get('/api/prescriptions/patient/:patient_id', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching patient prescriptions:', error);
+    logger.error('Error fetching patient prescriptions:', error);
     res.status(500).json({ error: 'Failed to fetch patient prescriptions' });
   }
 });
 
+// Error handler (must be last middleware)
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Prescription Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`💊 Prescriptions API: http://localhost:${PORT}/api/prescriptions`);
+  logger.info(`ðŸš€ Prescription Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ’Š Prescriptions API: http://localhost:${PORT}/api/prescriptions`);
 });
+

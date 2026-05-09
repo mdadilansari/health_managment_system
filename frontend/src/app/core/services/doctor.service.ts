@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+﻿import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
@@ -8,7 +8,7 @@ import { Doctor } from '../models/doctor.model';
   providedIn: 'root'
 })
 export class DoctorService {
-  private apiUrl = 'http://localhost:3002/api';
+  private apiUrl = 'http://localhost:3002/v1';
   private doctorsSubject = new BehaviorSubject<Doctor[]>([]);
   doctors$ = this.doctorsSubject.asObservable();
 
@@ -63,3 +63,4 @@ export class DoctorService {
     );
   }
 }
+

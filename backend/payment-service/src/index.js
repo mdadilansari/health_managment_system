@@ -1,16 +1,25 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
-const BILLING_SERVICE_URL      = process.env.BILLING_SERVICE_URL      || 'http://localhost:3004/api';
-const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007/api';
+const BILLING_SERVICE_URL      = process.env.BILLING_SERVICE_URL      || 'http://localhost:3004/v1';
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007/v1';
 
 app.use(cors());
 app.use(express.json());
+
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -22,7 +31,7 @@ app.get('/health', (req, res) => {
 });
 
 // Get all payments with optional filters
-app.get('/api/payments', async (req, res) => {
+app.get('/v1/payments', async (req, res) => {
   try {
     const { patient_id, bill_id } = req.query;
     
@@ -49,13 +58,13 @@ app.get('/api/payments', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching payments:', error);
+    logger.error('Error fetching payments:', error);
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
 });
 
 // Get single payment by ID
-app.get('/api/payments/:id', async (req, res) => {
+app.get('/v1/payments/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -69,13 +78,13 @@ app.get('/api/payments/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching payment:', error);
+    logger.error('Error fetching payment:', error);
     res.status(500).json({ error: 'Failed to fetch payment' });
   }
 });
 
 // Create new payment (idempotent via Idempotency-Key header)
-app.post('/api/payments', async (req, res) => {
+app.post('/v1/payments', async (req, res) => {
   try {
     const { bill_id, patient_id, amount, method, reference, notes } = req.body;
     const idempotencyKey = req.headers['idempotency-key'];
@@ -86,7 +95,7 @@ app.post('/api/payments', async (req, res) => {
       });
     }
 
-    // Idempotency — if same key seen before, return existing payment
+    // Idempotency â€” if same key seen before, return existing payment
     if (idempotencyKey) {
       const existing = await pool.query(
         'SELECT * FROM payments WHERE reference = $1',
@@ -111,9 +120,9 @@ app.post('/api/payments', async (req, res) => {
     // Mark bill as PAID (fire-and-forget)
     try {
       await axios.patch(`${BILLING_SERVICE_URL}/bills/${bill_id}/pay`, {}, { timeout: 3000 });
-      console.log(`[PaymentService] Bill #${bill_id} marked as PAID`);
+      logger.info(`[PaymentService] Bill #${bill_id} marked as PAID`);
     } catch (err) {
-      console.error(`[PaymentService] Failed to mark bill #${bill_id} as paid:`, err.message);
+      logger.error(`[PaymentService] Failed to mark bill #${bill_id} as paid:`, err.message);
     }
 
     // Send payment notification (fire-and-forget)
@@ -121,22 +130,22 @@ app.post('/api/payments', async (req, res) => {
       await axios.post(`${NOTIFICATION_SERVICE_URL}/notifications`, {
         type: 'PAYMENT_RECEIVED',
         title: 'Payment Received',
-        message: `Payment of ₹${amount} received for Bill #${bill_id}. Reference: ${ref}`,
+        message: `Payment of â‚¹${amount} received for Bill #${bill_id}. Reference: ${ref}`,
         metadata: { bill_id, payment_id: payment.payment_id }
       }, { timeout: 3000 });
     } catch (err) {
-      console.error('[PaymentService] Failed to send notification:', err.message);
+      logger.error('[PaymentService] Failed to send notification:', err.message);
     }
 
     res.status(201).json(payment);
   } catch (error) {
-    console.error('Error creating payment:', error);
+    logger.error('Error creating payment:', error);
     res.status(500).json({ error: 'Failed to create payment' });
   }
 });
 
 // Update payment (mark as paid, update amount, etc.)
-app.put('/api/payments/:id', async (req, res) => {
+app.put('/v1/payments/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, payment_method, transaction_id, notes } = req.body;
@@ -158,13 +167,13 @@ app.put('/api/payments/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating payment:', error);
+    logger.error('Error updating payment:', error);
     res.status(500).json({ error: 'Failed to update payment' });
   }
 });
 
 // Delete payment
-app.delete('/api/payments/:id', async (req, res) => {
+app.delete('/v1/payments/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -179,13 +188,13 @@ app.delete('/api/payments/:id', async (req, res) => {
 
     res.json({ message: 'Payment deleted successfully', payment: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting payment:', error);
+    logger.error('Error deleting payment:', error);
     res.status(500).json({ error: 'Failed to delete payment' });
   }
 });
 
 // Get payments by patient ID
-app.get('/api/payments/patient/:patient_id', async (req, res) => {
+app.get('/v1/payments/patient/:patient_id', async (req, res) => {
   try {
     const { patient_id } = req.params;
     const result = await pool.query(
@@ -194,13 +203,13 @@ app.get('/api/payments/patient/:patient_id', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching patient payments:', error);
+    logger.error('Error fetching patient payments:', error);
     res.status(500).json({ error: 'Failed to fetch patient payments' });
   }
 });
 
 // Get payments by bill ID
-app.get('/api/payments/bill/:bill_id', async (req, res) => {
+app.get('/v1/payments/bill/:bill_id', async (req, res) => {
   try {
     const { bill_id } = req.params;
     const result = await pool.query(
@@ -209,14 +218,19 @@ app.get('/api/payments/bill/:bill_id', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching bill payments:', error);
+    logger.error('Error fetching bill payments:', error);
     res.status(500).json({ error: 'Failed to fetch bill payments' });
   }
 });
 
+// Error handler (must be last middleware)
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Payment Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`💳 Payments API: http://localhost:${PORT}/api/payments`);
+  logger.info(`ðŸš€ Payment Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ’³ Payments API: http://localhost:${PORT}/v1/payments`);
 });
+
+

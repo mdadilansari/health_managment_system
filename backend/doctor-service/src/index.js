@@ -1,7 +1,9 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db');
+const logger = require('./middleware/logger');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -9,6 +11,13 @@ const PORT = process.env.PORT || 3002;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Attach correlation ID to every request
+app.use((req, _res, next) => {
+  const { randomUUID } = require('crypto');
+  req.correlationId = req.headers['x-correlation-id'] || randomUUID();
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -20,7 +29,7 @@ app.get('/health', (req, res) => {
 });
 
 // Get all doctors (with optional department filter)
-app.get('/api/doctors', async (req, res) => {
+app.get('/v1/doctors', async (req, res) => {
   try {
     const { department } = req.query;
     
@@ -37,26 +46,26 @@ app.get('/api/doctors', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching doctors:', error);
+    logger.error('Error fetching doctors:', error);
     res.status(500).json({ error: 'Failed to fetch doctors' });
   }
 });
 
 // Get unique departments
-app.get('/api/doctors/departments', async (req, res) => {
+app.get('/v1/doctors/departments', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT DISTINCT department FROM doctors ORDER BY department ASC'
     );
     res.json(result.rows.map(row => row.department));
   } catch (error) {
-    console.error('Error fetching departments:', error);
+    logger.error('Error fetching departments:', error);
     res.status(500).json({ error: 'Failed to fetch departments' });
   }
 });
 
 // Get single doctor by ID
-app.get('/api/doctors/:id', async (req, res) => {
+app.get('/v1/doctors/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
@@ -70,13 +79,13 @@ app.get('/api/doctors/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching doctor:', error);
+    logger.error('Error fetching doctor:', error);
     res.status(500).json({ error: 'Failed to fetch doctor' });
   }
 });
 
 // Create new doctor
-app.post('/api/doctors', async (req, res) => {
+app.post('/v1/doctors', async (req, res) => {
   try {
     const { name, email, phone, department, specialization, qualification, experience_years, consultation_fee } = req.body;
 
@@ -96,13 +105,13 @@ app.post('/api/doctors', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating doctor:', error);
+    logger.error('Error creating doctor:', error);
     res.status(500).json({ error: 'Failed to create doctor' });
   }
 });
 
 // Update doctor
-app.put('/api/doctors/:id', async (req, res) => {
+app.put('/v1/doctors/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, department, specialization, qualification, experience_years, consultation_fee } = req.body;
@@ -174,13 +183,13 @@ app.put('/api/doctors/:id', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating doctor:', error);
+    logger.error('Error updating doctor:', error);
     res.status(500).json({ error: 'Failed to update doctor' });
   }
 });
 
 // Delete doctor
-app.delete('/api/doctors/:id', async (req, res) => {
+app.delete('/v1/doctors/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -195,14 +204,18 @@ app.delete('/api/doctors/:id', async (req, res) => {
 
     res.json({ message: 'Doctor deleted successfully', doctor: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting doctor:', error);
+    logger.error('Error deleting doctor:', error);
     res.status(500).json({ error: 'Failed to delete doctor' });
   }
 });
 
+// Error handler (must be last middleware)
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Doctor Service running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`👨‍⚕️ Doctors API: http://localhost:${PORT}/api/doctors`);
+  logger.info(`ðŸš€ Doctor Service running on http://localhost:${PORT}`);
+  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  logger.info(`ðŸ‘¨â€âš•ï¸ Doctors API: http://localhost:${PORT}/api/doctors`);
 });
+
