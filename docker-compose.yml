@@ -1,0 +1,247 @@
+version: '3.9'
+
+services:
+
+  # ─── Databases ───────────────────────────────────────────────────────────────
+
+  db-patients:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_patients
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-patients-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-doctors:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_doctors
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-doctors-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-appointments:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_appointment
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-appointments-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-billing:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_billing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-billing-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-payments:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-payments-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-prescriptions:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_prescriptions
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-prescriptions-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-notifications:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hms_notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db-notifications-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Microservices ────────────────────────────────────────────────────────────
+
+  patient-service:
+    build: ./backend/patient-service
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DB_HOST: db-patients
+      DB_PORT: 5432
+      DB_NAME: hms_patients
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      db-patients:
+        condition: service_healthy
+    restart: unless-stopped
+
+  doctor-service:
+    build: ./backend/doctor-service
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      DB_HOST: db-doctors
+      DB_PORT: 5432
+      DB_NAME: hms_doctors
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      db-doctors:
+        condition: service_healthy
+    restart: unless-stopped
+
+  appointment-service:
+    build: ./backend/appointment-service
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      DB_HOST: db-appointments
+      DB_PORT: 5432
+      DB_NAME: hms_appointment
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      NOTIFICATION_SERVICE_URL: http://notification-service:3007/v1
+      BILLING_SERVICE_URL: http://billing-service:3004/v1
+    depends_on:
+      db-appointments:
+        condition: service_healthy
+    restart: unless-stopped
+
+  billing-service:
+    build: ./backend/billing-service
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      DB_HOST: db-billing
+      DB_PORT: 5432
+      DB_NAME: hms_billing
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      NOTIFICATION_SERVICE_URL: http://notification-service:3007/v1
+    depends_on:
+      db-billing:
+        condition: service_healthy
+    restart: unless-stopped
+
+  payment-service:
+    build: ./backend/payment-service
+    ports:
+      - "3005:3005"
+    environment:
+      PORT: 3005
+      DB_HOST: db-payments
+      DB_PORT: 5432
+      DB_NAME: hms_payments
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      BILLING_SERVICE_URL: http://billing-service:3004/v1
+      NOTIFICATION_SERVICE_URL: http://notification-service:3007/v1
+    depends_on:
+      db-payments:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prescription-service:
+    build: ./backend/prescription-service
+    ports:
+      - "3006:3006"
+    environment:
+      PORT: 3006
+      DB_HOST: db-prescriptions
+      DB_PORT: 5432
+      DB_NAME: hms_prescriptions
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      db-prescriptions:
+        condition: service_healthy
+    restart: unless-stopped
+
+  notification-service:
+    build: ./backend/notification-service
+    ports:
+      - "3007:3007"
+    environment:
+      PORT: 3007
+      DB_HOST: db-notifications
+      DB_PORT: 5432
+      DB_NAME: hms_notifications
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+    depends_on:
+      db-notifications:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─── Frontend ────────────────────────────────────────────────────────────────
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - patient-service
+      - doctor-service
+      - appointment-service
+      - billing-service
+      - payment-service
+      - prescription-service
+      - notification-service
+    restart: unless-stopped
+
+volumes:
+  db-patients-data:
+  db-doctors-data:
+  db-appointments-data:
+  db-billing-data:
+  db-payments-data:
+  db-prescriptions-data:
+  db-notifications-data:
