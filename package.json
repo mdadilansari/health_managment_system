@@ -1,0 +1,27 @@
+{
+  "name": "health-management-system",
+  "version": "1.0.0",
+  "description": "Hospital Management System — root scripts",
+  "scripts": {
+    "local:start":          "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 local:start",
+    "local:stop":           "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 local:stop",
+    "local:status":         "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 local:status",
+
+    "docker:start":         "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:start",
+    "docker:stop":          "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:stop",
+    "docker:restart":       "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:restart",
+    "docker:logs":          "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:logs",
+    "docker:status":        "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:status",
+    "docker:rebuild":       "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:rebuild",
+    "docker:reset":         "powershell -ExecutionPolicy Bypass -File .\\hms.ps1 docker:reset",
+
+    "start:patient":        "cd backend/patient-service && npm start",
+    "start:doctor":         "cd backend/doctor-service && npm start",
+    "start:appointment":    "cd backend/appointment-service && npm start",
+    "start:billing":        "cd backend/billing-service && npm start",
+    "start:payment":        "cd backend/payment-service && npm start",
+    "start:prescription":   "cd backend/prescription-service && npm start",
+    "start:notification":   "cd backend/notification-service && npm start",
+    "start:frontend":       "cd frontend && npx ng serve"
+  }
+}
