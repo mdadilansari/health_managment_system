@@ -1,11 +1,11 @@
-version: '3.9'
+﻿version: '3.9'
 
 services:
 
-  # ─── Databases ───────────────────────────────────────────────────────────────
+  # â”€â”€â”€ Databases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   db-patients:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_patients
       POSTGRES_USER: postgres
@@ -19,7 +19,7 @@ services:
       retries: 5
 
   db-doctors:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_doctors
       POSTGRES_USER: postgres
@@ -33,7 +33,7 @@ services:
       retries: 5
 
   db-appointments:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_appointment
       POSTGRES_USER: postgres
@@ -47,7 +47,7 @@ services:
       retries: 5
 
   db-billing:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_billing
       POSTGRES_USER: postgres
@@ -61,7 +61,7 @@ services:
       retries: 5
 
   db-payments:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_payments
       POSTGRES_USER: postgres
@@ -75,7 +75,7 @@ services:
       retries: 5
 
   db-prescriptions:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_prescriptions
       POSTGRES_USER: postgres
@@ -89,7 +89,7 @@ services:
       retries: 5
 
   db-notifications:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: hms_notifications
       POSTGRES_USER: postgres
@@ -102,7 +102,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── Microservices ────────────────────────────────────────────────────────────
+  # â”€â”€â”€ Microservices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   patient-service:
     build: ./backend/patient-service
@@ -221,7 +221,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ─── Frontend ────────────────────────────────────────────────────────────────
+  # â”€â”€â”€ Frontend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   frontend:
     build: ./frontend
@@ -245,3 +245,4 @@ volumes:
   db-payments-data:
   db-prescriptions-data:
   db-notifications-data:
+
