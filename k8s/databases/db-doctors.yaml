@@ -1,0 +1,78 @@
+﻿# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-doctors-pvc
+  namespace: hms
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-doctors
+  namespace: hms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-doctors
+  template:
+    metadata:
+      labels:
+        app: db-doctors
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "hms_doctors"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_PASSWORD
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: db-storage
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, postgres]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: db-doctors-pvc
+---
+# Service (ClusterIP — internal only)
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-doctors
+  namespace: hms
+spec:
+  selector:
+    app: db-doctors
+  ports:
+    - port: 5432
+      targetPort: 5432

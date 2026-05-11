@@ -22,6 +22,14 @@
     "start:payment":        "cd backend/payment-service && npm start",
     "start:prescription":   "cd backend/prescription-service && npm start",
     "start:notification":   "cd backend/notification-service && npm start",
-    "start:frontend":       "cd frontend && npx ng serve"
+    "start:frontend":       "cd frontend && npx ng serve",
+
+    "k8s:setup":            "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 setup",
+    "k8s:build":            "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 build",
+    "k8s:deploy":           "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 deploy",
+    "k8s:status":           "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 status",
+    "k8s:open":             "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 open",
+    "k8s:teardown":         "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 teardown",
+    "k8s:stop":             "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 stop"
   }
 }
