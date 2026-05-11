@@ -9,7 +9,7 @@ import { environment } from '../../environments/environment';
 })
 export class DoctorService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:3002/v1';
+  private apiUrl = environment.doctorServiceUrl;
 
   getDoctors(department?: string): Observable<Doctor[]> {
     const url = department 

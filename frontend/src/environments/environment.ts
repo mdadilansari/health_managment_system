@@ -1,5 +1,6 @@
 ﻿export const environment = {
   production: false,
+  apiUrl: 'http://localhost:3001/v1',
   patientServiceUrl:      'http://localhost:3001/v1',
   doctorServiceUrl:       'http://localhost:3002/v1',
   appointmentServiceUrl:  'http://localhost:3003/v1',
