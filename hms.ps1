@@ -1,9 +1,9 @@
-# HMS Management Script
-# Run this from the project root: .\hms.ps1
+﻿# HMS Management Script
+# Run from project root: .\hms.ps1 [command]
 
 param(
     [Parameter(Position=0)]
-    [string]$Command
+    [string]$Command = "help"
 )
 
 $ProjectRoot = $PSScriptRoot
@@ -23,8 +23,7 @@ $Services = @(
 function Show-Help {
     Write-Host ""
     Write-Host "  HMS Management Script" -ForegroundColor Cyan
-    Write-Host "  ─────────────────────────────────────────" -ForegroundColor DarkGray
-    Write-Host "  Usage: .\hms.ps1 <command>" -ForegroundColor White
+    Write-Host "  Usage: .\hms.ps1 [command]" -ForegroundColor White
     Write-Host ""
     Write-Host "  Local Commands:" -ForegroundColor Yellow
     Write-Host "    local:start     Start all backend services + frontend locally"
@@ -32,30 +31,28 @@ function Show-Help {
     Write-Host "    local:status    Show which ports are in use"
     Write-Host ""
     Write-Host "  Docker Commands:" -ForegroundColor Yellow
-    Write-Host "    docker:start    Start all containers (docker-compose up -d)"
-    Write-Host "    docker:stop     Stop all containers (docker-compose down)"
+    Write-Host "    docker:start    Start all containers"
+    Write-Host "    docker:stop     Stop all containers"
     Write-Host "    docker:restart  Restart all containers"
     Write-Host "    docker:logs     Tail logs from all containers"
-    Write-Host "    docker:status   Show container status (docker ps)"
-    Write-Host "    docker:rebuild  Rebuild images and restart (docker-compose up --build -d)"
-    Write-Host "    docker:reset    Stop + delete volumes + rebuild (WARNING: loses DB data)"
+    Write-Host "    docker:status   Show container status"
+    Write-Host "    docker:rebuild  Rebuild images and restart"
+    Write-Host "    docker:reset    Stop + delete volumes + rebuild"
     Write-Host ""
 }
 
 function Start-LocalServices {
     Write-Host "`n Starting HMS services locally..." -ForegroundColor Cyan
-
     foreach ($svc in $Services) {
         $path = "$BackendRoot\$($svc.Name)"
         if (!(Test-Path $path)) {
-            Write-Host "  [SKIP] $($svc.Name) — folder not found" -ForegroundColor DarkGray
+            Write-Host "  [SKIP] $($svc.Name)" -ForegroundColor DarkGray
             continue
         }
         Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$path'; npm start" -WindowStyle Normal
         Write-Host "  [UP]   $($svc.Name) on port $($svc.Port)" -ForegroundColor Green
         Start-Sleep -Milliseconds 300
     }
-
     Write-Host "`n Starting Angular frontend..." -ForegroundColor Cyan
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$FrontendRoot'; npx ng serve" -WindowStyle Normal
     Write-Host "  [UP]   frontend on http://localhost:4200" -ForegroundColor Green
@@ -64,7 +61,7 @@ function Start-LocalServices {
 
 function Stop-LocalServices {
     Write-Host "`n Stopping local HMS services..." -ForegroundColor Yellow
-    $ports = $Services.Port + 4200
+    $ports = ($Services | ForEach-Object { $_.Port }) + 4200
     foreach ($port in $ports) {
         $pid = (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue).OwningProcess | Select-Object -First 1
         if ($pid) {
@@ -83,9 +80,9 @@ function Show-LocalStatus {
     foreach ($svc in $allPorts) {
         $conn = Get-NetTCPConnection -LocalPort $svc.Port -State Listen -ErrorAction SilentlyContinue
         if ($conn) {
-            Write-Host "  [RUNNING] $($svc.Name) — port $($svc.Port)" -ForegroundColor Green
+            Write-Host "  [RUNNING] $($svc.Name) - port $($svc.Port)" -ForegroundColor Green
         } else {
-            Write-Host "  [STOPPED] $($svc.Name) — port $($svc.Port)" -ForegroundColor DarkGray
+            Write-Host "  [STOPPED] $($svc.Name) - port $($svc.Port)" -ForegroundColor DarkGray
         }
     }
     Write-Host ""
@@ -138,7 +135,6 @@ function Reset-Docker {
     Write-Host "`n Reset complete. Remember to re-run seed commands.`n" -ForegroundColor Yellow
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 switch ($Command) {
     "local:start"    { Start-LocalServices }
     "local:stop"     { Stop-LocalServices }
