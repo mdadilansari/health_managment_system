@@ -3,12 +3,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Doctor } from '../models/doctor.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DoctorService {
-  private apiUrl = 'http://localhost:3002/v1';
+  private apiUrl = environment.doctorServiceUrl;
   private doctorsSubject = new BehaviorSubject<Doctor[]>([]);
   doctors$ = this.doctorsSubject.asObservable();
 
@@ -63,4 +64,5 @@ export class DoctorService {
     );
   }
 }
+
 
