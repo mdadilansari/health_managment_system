@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
+const { register, metricsMiddleware, billCreationLatencyMs } = require('./middleware/metrics');
 
 const app = express();
 const PORT = process.env.PORT || 3004;
@@ -17,6 +18,15 @@ app.use((req, _res, next) => {
   const { randomUUID } = require('crypto');
   req.correlationId = req.headers['x-correlation-id'] || randomUUID();
   next();
+});
+
+// Prometheus metrics middleware
+app.use(metricsMiddleware('billing-service'));
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Health check endpoint
@@ -257,6 +267,7 @@ app.post('/v1/bills/internal', async (req, res) => {
     const tax    = parseFloat((base * TAX_RATE).toFixed(2));
     const amount = parseFloat((base + tax).toFixed(2));
 
+    const billStart = Date.now();
     const result = await pool.query(
       `INSERT INTO bills (appointment_id, patient_id, amount, status, created_at)
        VALUES ($1, $2, $3, 'OPEN', NOW())
@@ -264,8 +275,7 @@ app.post('/v1/bills/internal', async (req, res) => {
       [appointment_id, patient_id, amount]
     );
 
-    logger.info(`[BillingService] Bill #${result.rows[0].bill_id} created for appointment ${appointment_id} (${bill_type}, â‚¹${amount})`);
-    res.status(201).json(result.rows[0]);
+    logger.info(`[BillingService] Bill #${result.rows[0].bill_id} created for appointment ${appointment_id} (${bill_type}, â‚¹${amount})`);    billCreationLatencyMs.observe(Date.now() - billStart);    res.status(201).json(result.rows[0]);
   } catch (error) {
     logger.error('Error creating internal bill:', error);
     res.status(500).json({ error: 'Failed to create bill' });
@@ -281,4 +291,5 @@ app.listen(PORT, () => {
   logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
   logger.info(`ðŸ’° Billing API: http://localhost:${PORT}/api/bills`);
 });
+
 

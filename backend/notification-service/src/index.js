@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
+const { register, metricsMiddleware } = require('./middleware/metrics');
 
 const app = express();
 const PORT = process.env.PORT || 3007;
@@ -16,6 +17,15 @@ app.use((req, _res, next) => {
   const { randomUUID } = require('crypto');
   req.correlationId = req.headers['x-correlation-id'] || randomUUID();
   next();
+});
+
+// Prometheus metrics middleware
+app.use(metricsMiddleware('notification-service'));
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // â”€â”€ Auto-create table on startup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -173,4 +183,5 @@ app.listen(PORT, () => {
   logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
   logger.info(`ðŸ”” Notifications API: http://localhost:${PORT}/api/notifications`);
 });
+
 

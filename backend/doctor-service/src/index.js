@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
+const { register, metricsMiddleware } = require('./middleware/metrics');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -17,6 +18,15 @@ app.use((req, _res, next) => {
   const { randomUUID } = require('crypto');
   req.correlationId = req.headers['x-correlation-id'] || randomUUID();
   next();
+});
+
+// Prometheus metrics middleware
+app.use(metricsMiddleware('doctor-service'));
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Health check endpoint
@@ -218,4 +228,5 @@ app.listen(PORT, () => {
   logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
   logger.info(`ðŸ‘¨â€âš•ï¸ Doctors API: http://localhost:${PORT}/api/doctors`);
 });
+
 

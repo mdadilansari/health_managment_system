@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
+const { register, metricsMiddleware, appointmentsCreatedTotal, appointmentsCancelledTotal } = require('./middleware/metrics');
 const eventBus = require('./events/eventBus');
 
 const app = express();
@@ -68,6 +69,15 @@ app.use((req, _res, next) => {
   const { randomUUID } = require('crypto');
   req.correlationId = req.headers['x-correlation-id'] || randomUUID();
   next();
+});
+
+// Prometheus metrics middleware
+app.use(metricsMiddleware('appointment-service'));
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -212,6 +222,7 @@ app.post('/v1/appointments', async (req, res) => {
     // Publish event (fire-and-forget)
     eventBus.publish('appointment.booked', created);
 
+    appointmentsCreatedTotal.inc();
     res.status(201).json(created);
   } catch (error) {
     logger.error('Error creating appointment:', error);
@@ -250,6 +261,7 @@ app.patch('/v1/appointments/:id/cancel', async (req, res) => {
     // Publish event (fire-and-forget)
     eventBus.publish('appointment.cancelled', cancelled);
 
+    appointmentsCancelledTotal.inc();
     res.json(cancelled);
   } catch (error) {
     logger.error('Error cancelling appointment:', error);
@@ -437,4 +449,5 @@ app.listen(PORT, () => {
   logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
   logger.info(`ðŸ“… Appointments API: http://localhost:${PORT}/api/appointments`);
 });
+
 

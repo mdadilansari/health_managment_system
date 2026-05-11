@@ -29,6 +29,9 @@
     "k8s:status":           "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 status",
     "k8s:open":             "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 open",
     "k8s:teardown":         "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 teardown",
-    "k8s:stop":             "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 stop"
+    "k8s:stop":             "powershell -ExecutionPolicy Bypass -File .\\k8s-deploy.ps1 stop",
+
+    "open:prometheus":      "start http://localhost:9090",
+    "open:grafana":         "start http://localhost:3000"
   }
 }

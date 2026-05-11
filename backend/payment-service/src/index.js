@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
+const { register, metricsMiddleware, paymentsFailedTotal, paymentsSuccessTotal } = require('./middleware/metrics');
 const axios = require('axios');
 
 const app = express();
@@ -19,6 +20,15 @@ app.use((req, _res, next) => {
   const { randomUUID } = require('crypto');
   req.correlationId = req.headers['x-correlation-id'] || randomUUID();
   next();
+});
+
+// Prometheus metrics middleware
+app.use(metricsMiddleware('payment-service'));
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Health check endpoint
@@ -137,8 +147,10 @@ app.post('/v1/payments', async (req, res) => {
       logger.error('[PaymentService] Failed to send notification:', err.message);
     }
 
+    paymentsSuccessTotal.inc();
     res.status(201).json(payment);
   } catch (error) {
+    paymentsFailedTotal.inc();
     logger.error('Error creating payment:', error);
     res.status(500).json({ error: 'Failed to create payment' });
   }
@@ -232,5 +244,6 @@ app.listen(PORT, () => {
   logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
   logger.info(`ðŸ’³ Payments API: http://localhost:${PORT}/v1/payments`);
 });
+
 
 
