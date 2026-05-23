@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AppointmentService } from '../../../core/services/appointment.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Appointment, AppointmentStatus } from '../../../core/models/appointment.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserRole } from '../../../core/models/auth.model';
@@ -18,6 +19,7 @@ import { UserRole } from '../../../core/models/auth.model';
 export class AppointmentListComponent implements OnInit {
   private appointmentService = inject(AppointmentService);
   private toastService = inject(ToastService);
+  private notificationService = inject(NotificationService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   
@@ -105,6 +107,7 @@ export class AppointmentListComponent implements OnInit {
         this.toastService.success(`Appointment #${appointment.appointment_id} cancelled`);
         this.applyFilters();
         this.cdr.detectChanges();
+        setTimeout(() => this.notificationService.loadNotifications(), 1000);
       },
       error: (err) => {
         const msg = err?.error?.error || 'Failed to cancel appointment';
@@ -121,6 +124,7 @@ export class AppointmentListComponent implements OnInit {
         this.toastService.success(`Appointment #${appointment.appointment_id} marked as completed`);
         this.applyFilters();
         this.cdr.detectChanges();
+        setTimeout(() => this.notificationService.loadNotifications(), 1000);
       },
       error: (err) => {
         const msg = err?.error?.error || 'Failed to complete appointment';
@@ -137,6 +141,7 @@ export class AppointmentListComponent implements OnInit {
         this.toastService.warning(`Appointment #${appointment.appointment_id} marked as no-show`);
         this.applyFilters();
         this.cdr.detectChanges();
+        setTimeout(() => this.notificationService.loadNotifications(), 1000);
       },
       error: (err) => {
         const msg = err?.error?.error || 'Failed to mark no-show';

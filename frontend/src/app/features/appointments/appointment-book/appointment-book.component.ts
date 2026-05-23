@@ -6,6 +6,7 @@ import { PatientService } from '../../../core/services/patient.service';
 import { DoctorService } from '../../../core/services/doctor.service';
 import { AppointmentService } from '../../../core/services/appointment.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Patient } from '../../../core/models/patient.model';
 import { Doctor } from '../../../core/models/doctor.model';
 import { Appointment } from '../../../core/models/appointment.model';
@@ -25,6 +26,7 @@ export class AppointmentBookComponent implements OnInit {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private toastService = inject(ToastService);
+  private notificationService = inject(NotificationService);
 
   currentStep = signal(1);
   totalSteps = 4;
@@ -208,6 +210,8 @@ export class AppointmentBookComponent implements OnInit {
       next: (appointment) => {
         this.loading.set(false);
         this.toastService.success(`Appointment booked successfully! Appointment ID: #${appointment.appointment_id}`);
+        // Refresh notifications after a short delay to allow backend event processing
+        setTimeout(() => this.notificationService.loadNotifications(), 1000);
         this.router.navigate(['/appointments']);
       },
       error: (err) => {
