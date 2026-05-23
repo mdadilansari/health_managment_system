@@ -5,6 +5,7 @@ const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 const { register, metricsMiddleware } = require('./middleware/metrics');
+const { startConsumer } = require('./consumer');
 
 const app = express();
 const PORT = process.env.PORT || 3007;
@@ -179,9 +180,11 @@ app.delete('/v1/notifications/:id', async (req, res) => {
 // â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.listen(PORT, () => {
-  logger.info(`ðŸš€ Notification Service running on http://localhost:${PORT}`);
-  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
-  logger.info(`ðŸ”” Notifications API: http://localhost:${PORT}/api/notifications`);
+  logger.info(`Notification Service running on http://localhost:${PORT}`);
+  logger.info(`Health check: http://localhost:${PORT}/health`);
+  logger.info(`Notifications API: http://localhost:${PORT}/v1/notifications`);
+  // Start RabbitMQ consumer (async — gracefully retries if RabbitMQ unavailable)
+  startConsumer();
 });
 
 

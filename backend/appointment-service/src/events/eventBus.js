@@ -1,30 +1,73 @@
 /**
- * EventBus - Abstraction layer for inter-service communication.
+ * EventBus — async messaging via RabbitMQ (topic exchange).
  *
- * Currently implemented with HTTP (axios).
- * To migrate to RabbitMQ:
- *   1. Replace the `publish` function body with amqplib channel.publish()
- *   2. Each downstream service gets a consumer that calls the same handler logic
- *   3. No changes needed in the callers (appointmentController, etc.)
+ * Exchange : hms.events  (topic, durable)
+ * Routing keys:
+ *   appointment.booked | appointment.cancelled | appointment.completed
+ *   appointment.rescheduled | appointment.no_show
  *
- * Event contract (same shape whether HTTP or RabbitMQ):
- * {
- *   event:   string,        // e.g. 'appointment.completed'
- *   payload: object,        // event-specific data
- *   meta: {
- *     correlationId: string,
- *     timestamp:     string (ISO),
- *     source:        'appointment-service'
- *   }
- * }
+ * Consumers:
+ *   notification-service  → queue 'notifications' bound to 'appointment.*'
+ *   billing-service       → queue 'billing'        bound to 'appointment.completed'
+ *                                                            'appointment.no_show'
+ *
+ * Fallback: if RabbitMQ is unreachable, falls back to direct HTTP so that
+ * local dev (npm start without RabbitMQ running) keeps working.
  */
 
 const axios = require('axios');
 
+const RABBITMQ_URL             = process.env.RABBITMQ_URL             || 'amqp://localhost:5672';
 const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3007/v1';
 const BILLING_SERVICE_URL      = process.env.BILLING_SERVICE_URL      || 'http://localhost:3004/v1';
 
-// ── Notification templates ────────────────────────────────────────────────────
+const EXCHANGE = 'hms.events';
+
+// ── RabbitMQ connection state ─────────────────────────────────────────────────
+
+let _channel = null;
+let _connecting = false;
+
+async function getChannel() {
+  if (_channel) return _channel;
+  if (_connecting) return null;
+
+  _connecting = true;
+  try {
+    const amqp = require('amqplib');
+    const conn = await amqp.connect(RABBITMQ_URL);
+    conn.on('error', (err) => {
+      console.error('[EventBus] RabbitMQ connection error:', err.message);
+      _channel = null;
+    });
+    conn.on('close', () => {
+      console.warn('[EventBus] RabbitMQ connection closed — will retry on next publish');
+      _channel = null;
+    });
+    const ch = await conn.createChannel();
+    await ch.assertExchange(EXCHANGE, 'topic', { durable: true });
+    _channel = ch;
+    _connecting = false;
+    console.log('[EventBus] Connected to RabbitMQ — exchange:', EXCHANGE);
+    return _channel;
+  } catch (err) {
+    _connecting = false;
+    console.warn('[EventBus] RabbitMQ unavailable, HTTP fallback active:', err.message);
+    return null;
+  }
+}
+
+// Eager connect on startup (non-blocking)
+getChannel().catch(() => {});
+
+// ── Notification templates (used only for HTTP fallback) ─────────────────────
+
+function formatSlot(isoString) {
+  if (!isoString) return 'N/A';
+  return new Date(isoString).toLocaleString('en-IN', {
+    dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata'
+  });
+}
 
 const NOTIFICATION_TEMPLATES = {
   'appointment.booked': (p) => ({
@@ -59,18 +102,41 @@ const NOTIFICATION_TEMPLATES = {
   }),
 };
 
-function formatSlot(isoString) {
-  if (!isoString) return 'N/A';
-  return new Date(isoString).toLocaleString('en-IN', {
-    dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata'
-  });
+// ── HTTP fallback handlers ────────────────────────────────────────────────────
+
+async function httpNotify(event, payload) {
+  const template = NOTIFICATION_TEMPLATES[event];
+  if (!template) return;
+  const body = { ...template(payload), recipient_id: payload.patient_id };
+  await axios.post(`${NOTIFICATION_SERVICE_URL}/notifications`, body, { timeout: 3000 });
+  console.log(`[EventBus][HTTP-fallback] Notification sent for ${event}`);
 }
 
-// ── Core publish function — SWAP THIS for RabbitMQ ───────────────────────────
+async function httpBill(payload) {
+  await axios.post(`${BILLING_SERVICE_URL}/bills/internal`, {
+    appointment_id: payload.appointment_id,
+    patient_id:     payload.patient_id,
+    doctor_id:      payload.doctor_id,
+    bill_type:      payload.billType || 'CONSULTATION',
+  }, { timeout: 3000 });
+  console.log(`[EventBus][HTTP-fallback] Bill triggered for appointment ${payload.appointment_id}`);
+}
+
+const HTTP_HANDLERS = {
+  'appointment.booked':      [(e, p) => httpNotify(e, p)],
+  'appointment.cancelled':   [(e, p) => httpNotify(e, p)],
+  'appointment.completed':   [(e, p) => httpNotify(e, p), (e, p) => httpBill(p)],
+  'appointment.rescheduled': [(e, p) => httpNotify(e, p)],
+  'appointment.no_show':     [(e, p) => httpNotify(e, p), (e, p) => httpBill(p)],
+};
+
+// ── Core publish ──────────────────────────────────────────────────────────────
 
 /**
- * Publish an event to downstream services.
- * @param {string} event   - dot-notation event name e.g. 'appointment.completed'
+ * Publish an event asynchronously via RabbitMQ.
+ * Falls back to direct HTTP if RabbitMQ is unreachable.
+ *
+ * @param {string} event   - routing key, e.g. 'appointment.completed'
  * @param {object} payload - event data
  */
 async function publish(event, payload) {
@@ -84,46 +150,26 @@ async function publish(event, payload) {
     },
   };
 
-  console.log(`[EventBus] Publishing: ${event}`, envelope.meta.correlationId);
+  try {
+    const ch = await getChannel();
+    if (ch) {
+      ch.publish(
+        EXCHANGE,
+        event,
+        Buffer.from(JSON.stringify(envelope)),
+        { persistent: true, contentType: 'application/json' }
+      );
+      console.log(`[EventBus] Published to RabbitMQ: ${event} (${envelope.meta.correlationId})`);
+      return;
+    }
+  } catch (err) {
+    _channel = null;
+    console.warn('[EventBus] RabbitMQ publish failed, falling back to HTTP:', err.message);
+  }
 
-  // Fire-and-forget to all handlers (failures don't block the caller)
-  const handlers = HANDLERS[event] || [];
-  await Promise.allSettled(handlers.map(h => h(envelope)));
+  // HTTP fallback (local dev without RabbitMQ)
+  const handlers = HTTP_HANDLERS[event] || [];
+  await Promise.allSettled(handlers.map(h => h(event, payload)));
 }
-
-// ── HTTP handlers — replace these bodies with amqplib publish for RabbitMQ ──
-
-async function sendNotification(envelope) {
-  const { event, payload } = envelope;
-  const template = NOTIFICATION_TEMPLATES[event];
-  if (!template) return;
-
-  const body = { ...template(payload), recipient_id: payload.patient_id };
-  await axios.post(`${NOTIFICATION_SERVICE_URL}/notifications`, body, { timeout: 3000 });
-  console.log(`[EventBus] Notification sent for ${event}`);
-}
-
-async function createBill(envelope) {
-  const { payload } = envelope;
-  await axios.post(`${BILLING_SERVICE_URL}/bills/internal`, {
-    appointment_id: payload.appointment_id,
-    patient_id:     payload.patient_id,
-    doctor_id:      payload.doctor_id,
-    bill_type:      payload.billType || 'CONSULTATION',
-  }, { timeout: 3000 });
-  console.log(`[EventBus] Bill creation triggered for appointment ${payload.appointment_id}`);
-}
-
-// ── Event → Handler routing ──────────────────────────────────────────────────
-// To add RabbitMQ: keep this map, but replace sendNotification/createBill
-// with functions that publish to an exchange instead of calling HTTP.
-
-const HANDLERS = {
-  'appointment.booked':      [sendNotification],
-  'appointment.cancelled':   [sendNotification],
-  'appointment.completed':   [sendNotification, createBill],
-  'appointment.rescheduled': [sendNotification],
-  'appointment.no_show':     [sendNotification, createBill],
-};
 
 module.exports = { publish };

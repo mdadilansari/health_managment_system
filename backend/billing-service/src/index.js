@@ -5,6 +5,7 @@ const pool = require('./db');
 const logger = require('./middleware/logger');
 const { errorHandler } = require('./middleware/errorHandler');
 const { register, metricsMiddleware, billCreationLatencyMs } = require('./middleware/metrics');
+const { startConsumer } = require('./consumer');
 
 const app = express();
 const PORT = process.env.PORT || 3004;
@@ -287,9 +288,11 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  logger.info(`ðŸš€ Billing Service running on http://localhost:${PORT}`);
-  logger.info(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
-  logger.info(`ðŸ’° Billing API: http://localhost:${PORT}/api/bills`);
+  logger.info(`Billing Service running on http://localhost:${PORT}`);
+  logger.info(`Health check: http://localhost:${PORT}/health`);
+  logger.info(`Billing API: http://localhost:${PORT}/v1/bills`);
+  // Start RabbitMQ consumer (async — gracefully retries if RabbitMQ unavailable)
+  startConsumer();
 });
 
 

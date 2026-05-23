@@ -149,8 +149,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       NOTIFICATION_SERVICE_URL: http://notification-service:3007/v1
       BILLING_SERVICE_URL: http://billing-service:3004/v1
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       db-appointments:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
 
@@ -166,8 +169,11 @@ services:
       DB_USER: postgres
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       NOTIFICATION_SERVICE_URL: http://notification-service:3007/v1
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       db-billing:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
 
@@ -216,8 +222,11 @@ services:
       DB_NAME: hms_notifications
       DB_USER: postgres
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       db-notifications:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: unless-stopped
 
@@ -235,6 +244,25 @@ services:
       - payment-service
       - prescription-service
       - notification-service
+    restart: unless-stopped
+
+  # ─── Message Broker ──────────────────────────────────────────────────────────
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
     restart: unless-stopped
 
   # ─── Observability ────────────────────────────────────────────────────────────
@@ -274,6 +302,7 @@ volumes:
   db-payments-data:
   db-prescriptions-data:
   db-notifications-data:
+  rabbitmq-data:
   prometheus-data:
   grafana-data:
 
