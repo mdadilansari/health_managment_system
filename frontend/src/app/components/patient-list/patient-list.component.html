@@ -3,9 +3,14 @@
     <h1 class="mb-0">
       <i class="bi bi-people-fill"></i> Patient Records
     </h1>
-    <span class="badge bg-primary fs-6" *ngIf="!loading && !error">
-      {{ filteredPatients.length }} / {{ patients.length }} Patients
-    </span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary fs-6" *ngIf="!loading && !error">
+        {{ filteredPatients.length }} / {{ patients.length }} Patients
+      </span>
+      <button *ngIf="canManage()" class="btn btn-primary" (click)="openAddModal()">
+        ➕ Add Patient
+      </button>
+    </div>
   </div>
 
   <!-- Search Bar -->
@@ -44,9 +49,8 @@
     No patients found in the database.
   </div>
 
-  <!-- Empty state for filtered results -->
   <div *ngIf="!loading && !error && patients.length > 0 && filteredPatients.length === 0" class="alert alert-warning">
-    <i class="bi bi-exclamation-triangle"></i> No patients match your search "{{ searchTerm }}". Try a different search term.
+    <i class="bi bi-exclamation-triangle"></i> No patients match your search "{{ searchTerm }}".
   </div>
 
   <div *ngIf="!loading && !error && filteredPatients.length > 0">
@@ -60,10 +64,11 @@
             <th scope="col">Phone</th>
             <th scope="col">Date of Birth</th>
             <th scope="col">Registered</th>
+            <th *ngIf="canManage()" scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let patient of filteredPatients; let i = index">
+          <tr *ngFor="let patient of filteredPatients">
             <td><strong>{{ patient.patient_id }}</strong></td>
             <td>
               <div class="d-flex align-items-center">
@@ -72,22 +77,79 @@
               </div>
             </td>
             <td>
-              <a [href]="'mailto:' + patient.email" class="text-decoration-none">
-                {{ patient.email }}
-              </a>
+              <a [href]="'mailto:' + patient.email" class="text-decoration-none">{{ patient.email }}</a>
             </td>
             <td>
-              <a [href]="'tel:' + patient.phone" class="text-decoration-none">
-                {{ patient.phone }}
-              </a>
+              <a [href]="'tel:' + patient.phone" class="text-decoration-none">{{ patient.phone }}</a>
             </td>
             <td>{{ patient.dob | date:'mediumDate' }}</td>
-            <td>
-              <small class="text-muted">{{ patient.created_at | date:'short' }}</small>
+            <td><small class="text-muted">{{ patient.created_at | date:'short' }}</small></td>
+            <td *ngIf="canManage()">
+              <div class="d-flex gap-1">
+                <button class="btn btn-outline-primary btn-sm" (click)="openEditModal(patient)" title="Edit">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-outline-danger btn-sm" (click)="deletePatient(patient)" title="Delete">
+                  🗑️ Delete
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Patient Modal -->
+<div class="modal-backdrop fade show" *ngIf="showModal" style="z-index:1040;"></div>
+<div class="modal fade show d-block" *ngIf="showModal" tabindex="-1" style="z-index:1050;" (click)="closeModal()">
+  <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ editingPatient ? 'Edit Patient' : 'Add New Patient' }}</h5>
+        <button type="button" class="btn-close" (click)="closeModal()"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="patientForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="name"
+                [class.is-invalid]="patientForm.get('name')?.invalid && patientForm.get('name')?.touched"
+                placeholder="e.g. John Doe">
+              <div class="invalid-feedback">Name must be at least 2 characters.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" formControlName="email"
+                [class.is-invalid]="patientForm.get('email')?.invalid && patientForm.get('email')?.touched"
+                placeholder="e.g. john@example.com">
+              <div class="invalid-feedback">Enter a valid email address.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Phone <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="phone"
+                [class.is-invalid]="patientForm.get('phone')?.invalid && patientForm.get('phone')?.touched"
+                placeholder="10-digit number">
+              <div class="invalid-feedback">Enter a valid 10-digit phone number.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Date of Birth <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" formControlName="dob"
+                [class.is-invalid]="patientForm.get('dob')?.invalid && patientForm.get('dob')?.touched">
+              <div class="invalid-feedback">Date of birth is required.</div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="savePatient()" [disabled]="saving">
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>
+          {{ editingPatient ? 'Save Changes' : 'Add Patient' }}
+        </button>
+      </div>
     </div>
   </div>
 </div>

@@ -97,7 +97,7 @@ app.get('/v1/doctors/:id', async (req, res) => {
 // Create new doctor
 app.post('/v1/doctors', async (req, res) => {
   try {
-    const { name, email, phone, department, specialization, qualification, experience_years, consultation_fee } = req.body;
+    const { name, email, phone, department, specialization } = req.body;
 
     // Validate required fields
     if (!name || !email || !phone || !department) {
@@ -107,10 +107,10 @@ app.post('/v1/doctors', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO doctors (name, email, phone, department, specialization, qualification, experience_years, consultation_fee)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO doctors (name, email, phone, department, specialization, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING *`,
-      [name, email, phone, department, specialization || null, qualification || null, experience_years || 0, consultation_fee || 0]
+      [name, email, phone, department, specialization || null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -124,7 +124,7 @@ app.post('/v1/doctors', async (req, res) => {
 app.put('/v1/doctors/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, department, specialization, qualification, experience_years, consultation_fee } = req.body;
+    const { name, email, phone, department, specialization } = req.body;
 
     let updates = [];
     let params = [];
@@ -157,24 +157,6 @@ app.put('/v1/doctors/:id', async (req, res) => {
     if (specialization !== undefined) {
       updates.push('specialization = $' + paramIndex);
       params.push(specialization);
-      paramIndex++;
-    }
-
-    if (qualification !== undefined) {
-      updates.push('qualification = $' + paramIndex);
-      params.push(qualification);
-      paramIndex++;
-    }
-
-    if (experience_years !== undefined) {
-      updates.push('experience_years = $' + paramIndex);
-      params.push(experience_years);
-      paramIndex++;
-    }
-
-    if (consultation_fee !== undefined) {
-      updates.push('consultation_fee = $' + paramIndex);
-      params.push(consultation_fee);
       paramIndex++;
     }
 

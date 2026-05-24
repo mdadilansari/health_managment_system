@@ -74,7 +74,7 @@ app.get('/v1/patients/:id', async (req, res) => {
 // Create new patient
 app.post('/v1/patients', async (req, res) => {
   try {
-    const { name, email, phone, dob, gender, address } = req.body;
+    const { name, email, phone, dob } = req.body;
 
     // Validate required fields
     if (!name || !email || !phone) {
@@ -86,10 +86,10 @@ app.post('/v1/patients', async (req, res) => {
     const created_at = new Date().toISOString();
 
     const result = await pool.query(
-      `INSERT INTO patients (name, email, phone, dob, gender, address, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO patients (name, email, phone, dob, created_at)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [name, email, phone, dob || null, gender || null, address || null, created_at]
+      [name, email, phone, dob || null, created_at]
     );
 
     res.status(201).json(result.rows[0]);
@@ -103,7 +103,7 @@ app.post('/v1/patients', async (req, res) => {
 app.put('/v1/patients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, dob, gender, address } = req.body;
+    const { name, email, phone, dob } = req.body;
 
     let updates = [];
     let params = [];
@@ -133,17 +133,7 @@ app.put('/v1/patients/:id', async (req, res) => {
       paramIndex++;
     }
 
-    if (gender !== undefined) {
-      updates.push('gender = $' + paramIndex);
-      params.push(gender);
-      paramIndex++;
-    }
-
-    if (address !== undefined) {
-      updates.push('address = $' + paramIndex);
-      params.push(address);
-      paramIndex++;
-    }
+    // gender and address are not in the patients schema
 
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });

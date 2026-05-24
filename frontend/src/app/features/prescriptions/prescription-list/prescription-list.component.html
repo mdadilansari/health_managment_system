@@ -3,9 +3,14 @@
     <h1 class="mb-0">
       💊 Prescriptions
     </h1>
-    <span class="badge bg-info fs-6" *ngIf="!loading && !error">
-      {{ filteredPrescriptions.length }} Prescriptions
-    </span>
+    <div class="d-flex align-items-center gap-3">
+      <span class="badge bg-info fs-6" *ngIf="!loading && !error">
+        {{ filteredPrescriptions.length }} Prescriptions
+      </span>
+      <a *ngIf="canWrite()" routerLink="/prescriptions/write" class="btn btn-info text-white">
+        <i class="bi bi-pencil-fill me-1"></i> Write Prescription
+      </a>
+    </div>
   </div>
 
   <!-- Search -->

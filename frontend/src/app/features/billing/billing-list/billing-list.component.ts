@@ -5,7 +5,9 @@ import { BillingService } from '../../../core/services/billing.service';
 import { PaymentService } from '../../../core/services/payment.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PatientService } from '../../../core/services/patient.service';
 import { Bill, BillStatus } from '../../../core/models/billing.model';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-billing-list',
@@ -19,7 +21,10 @@ export class BillingListComponent implements OnInit {
   private paymentService = inject(PaymentService);
   private toastService = inject(ToastService);
   private authService = inject(AuthService);
+  private patientService = inject(PatientService);
   private cdr = inject(ChangeDetectorRef);
+  
+  private patientMap = new Map<number, string>();
   
   bills: Bill[] = [];
   filteredBills: Bill[] = [];
@@ -38,11 +43,18 @@ export class BillingListComponent implements OnInit {
     this.loading = true;
     this.error = '';
     this.cdr.markForCheck();
-    
-    this.billingService.getBills().subscribe({
-      next: (data) => {
-        this.bills = [...data];
-        this.filteredBills = [...data];
+
+    forkJoin({
+      bills: this.billingService.getBills(),
+      patients: this.patientService.getPatients()
+    }).subscribe({
+      next: ({ bills, patients }) => {
+        patients.forEach(p => this.patientMap.set(p.patient_id, p.name));
+        this.bills = bills.map(b => ({
+          ...b,
+          patient_name: this.patientMap.get(b.patient_id) || b.patient_name,
+        }));
+        this.filteredBills = [...this.bills];
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -138,7 +150,8 @@ export class BillingListComponent implements OnInit {
   }
 
   viewBillDetails(bill: Bill): void {
-    this.toastService.info(`Bill #${bill.bill_id} — Patient #${bill.patient_id} — ₹${this.getAmount(bill)} — ${bill.status}`);
+    const patientLabel = bill.patient_name || `Patient #${bill.patient_id}`;
+    this.toastService.info(`Bill #${bill.bill_id} — ${patientLabel} — ₹${this.getAmount(bill)} — ${bill.status}`);
   }
 
   canProcessPayment(): boolean {

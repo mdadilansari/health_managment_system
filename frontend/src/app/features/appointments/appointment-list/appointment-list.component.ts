@@ -5,9 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { AppointmentService } from '../../../core/services/appointment.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { PatientService } from '../../../core/services/patient.service';
+import { DoctorService } from '../../../core/services/doctor.service';
 import { Appointment, AppointmentStatus } from '../../../core/models/appointment.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserRole } from '../../../core/models/auth.model';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-appointment-list',
@@ -20,8 +23,13 @@ export class AppointmentListComponent implements OnInit {
   private appointmentService = inject(AppointmentService);
   private toastService = inject(ToastService);
   private notificationService = inject(NotificationService);
+  private patientService = inject(PatientService);
+  private doctorService = inject(DoctorService);
   private authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+  
+  private patientMap = new Map<number, string>();
+  private doctorMap = new Map<number, string>();
   
   appointments: Appointment[] = [];
   filteredAppointments: Appointment[] = [];
@@ -44,11 +52,21 @@ export class AppointmentListComponent implements OnInit {
     this.loading = true;
     this.error = '';
     this.cdr.markForCheck();
-    
-    this.appointmentService.getAppointments().subscribe({
-      next: (data) => {
-        this.appointments = [...data];
-        this.filteredAppointments = [...data];
+
+    forkJoin({
+      appointments: this.appointmentService.getAppointments(),
+      patients: this.patientService.getPatients(),
+      doctors: this.doctorService.getDoctors()
+    }).subscribe({
+      next: ({ appointments, patients, doctors }) => {
+        patients.forEach(p => this.patientMap.set(p.patient_id, p.name));
+        doctors.forEach(d => this.doctorMap.set(d.doctor_id, d.name));
+        this.appointments = appointments.map(a => ({
+          ...a,
+          patient_name: this.patientMap.get(a.patient_id) || a.patient_name,
+          doctor_name: this.doctorMap.get(a.doctor_id) || a.doctor_name,
+        }));
+        this.filteredAppointments = [...this.appointments];
         this.loading = false;
         this.applyFilters();
         this.cdr.detectChanges();

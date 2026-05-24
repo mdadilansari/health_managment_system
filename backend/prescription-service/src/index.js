@@ -99,28 +99,20 @@ app.get('/v1/prescriptions/:id', async (req, res) => {
 // Create new prescription
 app.post('/v1/prescriptions', async (req, res) => {
   try {
-    const { patient_id, doctor_id, appointment_id, medications, instructions, follow_up_date } = req.body;
+    const { patient_id, doctor_id, appointment_id, medication, dosage, days } = req.body;
 
     // Validate required fields
-    if (!patient_id || !doctor_id || !medications || !Array.isArray(medications)) {
+    if (!patient_id || !doctor_id || !appointment_id || !medication || !dosage || !days) {
       return res.status(400).json({ 
-        error: 'Missing required fields: patient_id, doctor_id, medications (array)' 
+        error: 'Missing required fields: patient_id, doctor_id, appointment_id, medication, dosage, days' 
       });
     }
-
-    if (medications.length === 0) {
-      return res.status(400).json({ 
-        error: 'At least one medication is required' 
-      });
-    }
-
-    const prescription_date = new Date().toISOString();
 
     const result = await pool.query(
-      `INSERT INTO prescriptions (patient_id, doctor_id, appointment_id, prescription_date, medications, instructions, follow_up_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO prescriptions (appointment_id, patient_id, doctor_id, medication, dosage, days, issued_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
        RETURNING *`,
-      [patient_id, doctor_id, appointment_id || null, prescription_date, JSON.stringify(medications), instructions || null, follow_up_date || null]
+      [appointment_id, patient_id, doctor_id, medication, dosage, days]
     );
 
     res.status(201).json(result.rows[0]);
@@ -134,27 +126,27 @@ app.post('/v1/prescriptions', async (req, res) => {
 app.put('/v1/prescriptions/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { medications, instructions, follow_up_date } = req.body;
+    const { medication, dosage, days } = req.body;
 
     let updates = [];
     let params = [];
     let paramIndex = 1;
 
-    if (medications) {
-      updates.push('medications = $' + paramIndex);
-      params.push(JSON.stringify(medications));
+    if (medication) {
+      updates.push('medication = $' + paramIndex);
+      params.push(medication);
       paramIndex++;
     }
 
-    if (instructions) {
-      updates.push('instructions = $' + paramIndex);
-      params.push(instructions);
+    if (dosage) {
+      updates.push('dosage = $' + paramIndex);
+      params.push(dosage);
       paramIndex++;
     }
 
-    if (follow_up_date) {
-      updates.push('follow_up_date = $' + paramIndex);
-      params.push(follow_up_date);
+    if (days) {
+      updates.push('days = $' + paramIndex);
+      params.push(days);
       paramIndex++;
     }
 

@@ -3,9 +3,14 @@
     <h1 class="mb-0">
       <i class="bi bi-hospital-fill"></i> Medical Staff
     </h1>
-    <span class="badge bg-success fs-6" *ngIf="!loading && !error">
-      {{ filteredDoctors.length }} / {{ doctors.length }} Doctors
-    </span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-success fs-6" *ngIf="!loading && !error">
+        {{ filteredDoctors.length }} / {{ doctors.length }} Doctors
+      </span>
+      <button *ngIf="canManage()" class="btn btn-success" (click)="openAddModal()">
+        ➕ Add Doctor
+      </button>
+    </div>
   </div>
 
   <!-- Filters Row -->
@@ -24,22 +29,14 @@
     <div class="col-md-8" *ngIf="!loading && !error && doctors.length > 0">
       <label for="searchDoctor" class="form-label fw-bold">Search</label>
       <div class="input-group">
-        <span class="input-group-text bg-white">
-          <i class="bi bi-search"></i>
-        </span>
+        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
         <input 
           id="searchDoctor"
           type="text" 
           class="form-control" 
           placeholder="Search by name, email, phone, specialization..."
           [(ngModel)]="searchTerm">
-        <button 
-          *ngIf="searchTerm" 
-          class="btn btn-outline-secondary" 
-          type="button"
-          (click)="searchTerm = ''">
-          Clear
-        </button>
+        <button *ngIf="searchTerm" class="btn btn-outline-secondary" type="button" (click)="searchTerm = ''">Clear</button>
       </div>
     </div>
   </div>
@@ -59,9 +56,8 @@
     No doctors found{{ selectedDepartment ? ' in ' + selectedDepartment : '' }}.
   </div>
 
-  <!-- Empty state for filtered results -->
   <div *ngIf="!loading && !error && doctors.length > 0 && filteredDoctors.length === 0" class="alert alert-warning">
-    <i class="bi bi-exclamation-triangle"></i> No doctors match your search "{{ searchTerm }}". Try a different search term.
+    <i class="bi bi-exclamation-triangle"></i> No doctors match your search "{{ searchTerm }}".
   </div>
 
   <div *ngIf="!loading && !error && filteredDoctors.length > 0">
@@ -76,6 +72,7 @@
             <th scope="col">Email</th>
             <th scope="col">Phone</th>
             <th scope="col">Registered</th>
+            <th *ngIf="canManage()" scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -87,26 +84,91 @@
                 {{ doctor.name }}
               </div>
             </td>
-            <td>
-              <span class="badge bg-info text-dark">{{ doctor.department }}</span>
-            </td>
+            <td><span class="badge bg-info text-dark">{{ doctor.department }}</span></td>
             <td>{{ doctor.specialization }}</td>
             <td>
-              <a [href]="'mailto:' + doctor.email" class="text-decoration-none">
-                {{ doctor.email }}
-              </a>
+              <a [href]="'mailto:' + doctor.email" class="text-decoration-none">{{ doctor.email }}</a>
             </td>
             <td>
-              <a [href]="'tel:' + doctor.phone" class="text-decoration-none">
-                {{ doctor.phone }}
-              </a>
+              <a [href]="'tel:' + doctor.phone" class="text-decoration-none">{{ doctor.phone }}</a>
             </td>
-            <td>
-              <small class="text-muted">{{ doctor.created_at | date:'short' }}</small>
+            <td><small class="text-muted">{{ doctor.created_at | date:'short' }}</small></td>
+            <td *ngIf="canManage()">
+              <div class="d-flex gap-1">
+                <button class="btn btn-outline-primary btn-sm" (click)="openEditModal(doctor)" title="Edit">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-outline-danger btn-sm" (click)="deleteDoctor(doctor)" title="Delete">
+                  🗑️ Delete
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Doctor Modal -->
+<div class="modal-backdrop fade show" *ngIf="showModal" style="z-index:1040;"></div>
+<div class="modal fade show d-block" *ngIf="showModal" tabindex="-1" style="z-index:1050;" (click)="closeModal()">
+  <div class="modal-dialog modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ editingDoctor ? 'Edit Doctor' : 'Add New Doctor' }}</h5>
+        <button type="button" class="btn-close" (click)="closeModal()"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="doctorForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="name"
+                [class.is-invalid]="doctorForm.get('name')?.invalid && doctorForm.get('name')?.touched"
+                placeholder="e.g. Dr. Jane Smith">
+              <div class="invalid-feedback">Name must be at least 2 characters.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" formControlName="email"
+                [class.is-invalid]="doctorForm.get('email')?.invalid && doctorForm.get('email')?.touched"
+                placeholder="e.g. dr.jane@hospital.com">
+              <div class="invalid-feedback">Enter a valid email address.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Phone <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="phone"
+                [class.is-invalid]="doctorForm.get('phone')?.invalid && doctorForm.get('phone')?.touched"
+                placeholder="10-digit number">
+              <div class="invalid-feedback">Enter a valid 10-digit phone number.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Department <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="department"
+                [class.is-invalid]="doctorForm.get('department')?.invalid && doctorForm.get('department')?.touched">
+                <option value="">Select department...</option>
+                <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+              </select>
+              <div class="invalid-feedback">Department is required.</div>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label fw-bold">Specialization <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="specialization"
+                [class.is-invalid]="doctorForm.get('specialization')?.invalid && doctorForm.get('specialization')?.touched"
+                placeholder="e.g. Cardiothoracic Surgery">
+              <div class="invalid-feedback">Specialization is required.</div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-success" (click)="saveDoctor()" [disabled]="saving">
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>
+          {{ editingDoctor ? 'Save Changes' : 'Add Doctor' }}
+        </button>
+      </div>
     </div>
   </div>
 </div>

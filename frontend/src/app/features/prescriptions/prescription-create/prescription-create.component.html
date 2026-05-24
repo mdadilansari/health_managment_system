@@ -1,0 +1,97 @@
+<div class="container mt-4" style="max-width: 640px;">
+  <div class="d-flex align-items-center mb-4 gap-2">
+    <button class="btn btn-outline-secondary btn-sm" (click)="cancel()">
+      <i class="bi bi-arrow-left"></i> Back
+    </button>
+    <h1 class="mb-0 fs-3">✏️ Write Prescription</h1>
+  </div>
+
+  <div *ngIf="dataLoading" class="text-center py-5">
+    <div class="spinner-border text-info" role="status"></div>
+    <p class="mt-2 text-muted">Loading form data...</p>
+  </div>
+
+  <div *ngIf="!dataLoading">
+    <div *ngIf="error" class="alert alert-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+          <!-- Appointment -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Appointment <span class="text-danger">*</span></label>
+            <select class="form-select" formControlName="appointment_id" (change)="onAppointmentChange()"
+              [class.is-invalid]="form.get('appointment_id')?.invalid && form.get('appointment_id')?.touched">
+              <option value="" disabled>{{ appointments.length === 0 ? 'Loading appointments...' : '— Select appointment —' }}</option>
+              <option *ngFor="let a of appointments" [value]="a.appointment_id">
+                #{{ a.appointment_id }} — {{ getPatientName(a.patient_id) }} with {{ getDoctorName(a.doctor_id) }}
+                ({{ a.slot_start | date:'mediumDate' }}) [{{ a.status }}]
+              </option>
+            </select>
+            <div class="invalid-feedback">Please select an appointment.</div>
+          </div>
+
+          <!-- Patient (auto-filled) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Patient</label>
+            <input type="text" class="form-control bg-light"
+              [value]="form.value.patient_id ? getPatientName(form.value.patient_id) : ''" readonly
+              placeholder="Auto-filled from appointment">
+          </div>
+
+          <!-- Doctor (auto-filled) -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Doctor</label>
+            <input type="text" class="form-control bg-light"
+              [value]="form.value.doctor_id ? getDoctorName(form.value.doctor_id) : ''" readonly
+              placeholder="Auto-filled from appointment">
+          </div>
+
+          <hr>
+
+          <!-- Medication -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Medication <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="medication"
+              placeholder="e.g. Paracetamol 500mg" maxlength="100"
+              [class.is-invalid]="form.get('medication')?.invalid && form.get('medication')?.touched">
+            <div class="invalid-feedback">Medication name is required (max 100 characters).</div>
+          </div>
+
+          <!-- Dosage -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Dosage <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="dosage"
+              placeholder="e.g. 1-0-1 or Twice daily" maxlength="20"
+              [class.is-invalid]="form.get('dosage')?.invalid && form.get('dosage')?.touched">
+            <div class="invalid-feedback">Dosage is required (max 20 characters).</div>
+          </div>
+
+          <!-- Days -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Duration (days) <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" formControlName="days"
+              placeholder="e.g. 5" min="1" max="365"
+              [class.is-invalid]="form.get('days')?.invalid && form.get('days')?.touched">
+            <div class="invalid-feedback">Enter a valid number of days (1–365).</div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-info text-white flex-grow-1" [disabled]="loading">
+              <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+              <i *ngIf="!loading" class="bi bi-check-lg me-1"></i>
+              {{ loading ? 'Saving...' : 'Write Prescription' }}
+            </button>
+            <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="loading">
+              Cancel
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

@@ -47,6 +47,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/prescriptions/prescription-list/prescription-list.component').then(m => m.PrescriptionListComponent)
       },
       {
+        path: 'prescriptions/write',
+        canActivate: [roleGuard(['admin', 'doctor'])],
+        loadComponent: () => import('./features/prescriptions/prescription-create/prescription-create.component').then(m => m.PrescriptionCreateComponent)
+      },
+      {
         path: 'notifications',
         loadComponent: () => import('./features/notifications/notifications.component').then(m => m.NotificationsComponent)
       },
